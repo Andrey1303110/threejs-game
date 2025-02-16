@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-// import { sRGBEncoding, DRACOLoader, GLTFLoader } from 'three';
 import { LoadingBar } from './LoadingBar.js';
 import { City } from './City.js';
 import { GLTFLoader } from './loaders/GLTFLoader.js';
@@ -7,7 +6,7 @@ import { DRACOLoader } from './loaders/DRACOLoader.js';
 
 // const DEFAULT_SPEED = 0;
 const DEFAULT_SPEED = 10;
-const MAX_SPEED = 30;
+const MAX_SPEED = 25;
 
 class App{
 	constructor(){
@@ -47,6 +46,7 @@ class App{
         this.lastShootTime = 0;
         this.lastEnemyIndex = 0;
         this.tiltAngle = 0;
+        this.enemyCount = 0;
 
 		this.scene.fog = new THREE.FogExp2(0xefd1b5, 0.01);
 
@@ -77,7 +77,7 @@ class App{
             gltf => {
                 this.originalGLTF = gltf; // Сохраняем оригинальную модель
                 this.addPlayer(gltf);
-                this.addEnemies();
+                // this.addEnemies();
             },
             xhr => {
                 this.loadingBar.progress = (xhr.loaded / xhr.total);
@@ -134,17 +134,33 @@ class App{
     }
 
     addEnemy(gltf) {
+        if (!this.originalGLTF) {
+            return;
+        }
+
+        gltf = this.originalGLTF;
+        const addEnemyDelay = 4;
+        const enemiesCount = 40;
+
+        if (this.enemyCount > enemiesCount) {
+            return;
+        }
+
+        if (this.clock.elapsedTime <= this.lastEnemyAddedTime + addEnemyDelay) {
+            return;
+        }
+
         const lines = this.city.linesBetweenBuilding;
         const enemy = gltf.scene.clone();
         enemy.rotation.y = Math.PI * 1.5;
         
-        // const xIndex = getRandomInRange(0, lines.length-1);
-        const xIndex = 3;
+        const xIndex = getRandomInRange(0, lines.length-1);
+        // const xIndex = 3;
         const x = lines[xIndex];
         const y = getRandomInRange(60, 90);
         const startPositionOffset = 180;
-        const offsetBetweenEnemies = 80;
-        const zPosition = (this.enemies.length + 1) * offsetBetweenEnemies + startPositionOffset;
+        const offsetBetweenEnemies = 120;
+        const zPosition = (this.enemyCount + 1) * offsetBetweenEnemies + startPositionOffset;
         
         enemy.position.set(x, y, -zPosition);
         this.enemies.push(enemy);
@@ -158,6 +174,32 @@ class App{
         }
 
         this.scene.add(enemy);
+
+        this.lastEnemyAddedTime = this.clock.elapsedTime;
+        this.enemyCount++;
+    }
+
+    updateEnemies(deltaTime) {
+        if (this.enemies) {;
+            const cameraOffset = 30;
+            for (let i = this.enemies.length - 1; i >= 0; i--) {
+                const enemy = this.enemies[i];
+                
+                if (enemy.position.z >= this.player.position.z + cameraOffset) {
+                    enemy.remove();
+                    enemy.clear()
+                    return this.enemies.splice(i, 1);
+                }
+
+                enemy.position.z += DEFAULT_SPEED * deltaTime;
+                enemy.mixer.update(deltaTime);
+            }
+            
+        }
+    }
+
+    updatePlayer(deltaTime) {
+        this.player.position.z -= this.player.currentSpeed * deltaTime;
     }
 
     set action(name){
@@ -394,7 +436,12 @@ class App{
 
         // Удаляем пули
         bulletsToRemove.forEach((bulletIndex) => {
-            this.scene.remove(this.bullets[bulletIndex].mesh);
+            const bullet = this.bullets[bulletIndex];
+            if (!bullet || !bullet.mesh) {
+                return;
+            }
+    
+            this.scene.remove(bullet);
             this.bullets.splice(bulletIndex, 1);
         });
 
@@ -454,21 +501,16 @@ class App{
 	render() {
         const deltaTime = this.clock.getDelta();
 
+        this.addEnemy();
         this.updateMovement(deltaTime);
         this.updateCamera(deltaTime);
         this.updateBullets(deltaTime); // Обновление полета пуль
+        this.updateEnemies(deltaTime);
+        this.updatePlayer(deltaTime);
     
         if (this.mixer) this.mixer.update(deltaTime);
         if (this.keys.shoot) this.shoot(); // Проверяем, нужно ли стрелять
-
-        if (this.enemies) {
-            this.enemies.forEach(enemy => {
-                enemy.position.z += DEFAULT_SPEED * deltaTime;
-                enemy.mixer.update(deltaTime);
-            })
-        }
-
-        this.player.position.z -= this.player.currentSpeed * deltaTime;    
+ 
         this.renderer.render(this.scene, this.camera);
     }
 }
