@@ -49,7 +49,8 @@ export class City {
         // const buildingSize = 16; // Ширина и глубина каждого здания
         const buildingSize = 16; // Ширина и глубина каждого здания
         const buildHeight = 55;
-        const spacing = 38; // Равномерный отступ между зданиями
+        const spacingByX = 38; // Равномерный отступ между зданиями
+        const spacingByY = 52; // Равномерный отступ между зданиями
 
         for (let i = 0; i < numBuildingsX; i++) {
             for (let j = 0; j < numBuildingsZ; j++) {
@@ -78,11 +79,12 @@ export class City {
                 // });
 
                 const building = new THREE.Mesh(geometry, materials);
-                // const building = new THREE.Mesh(geometry, material);
+                building.updateMatrixWorld(true);
+                building.boundingBox = new THREE.Box3().setFromObject(building);
 
                 // Расположение здания по сетке
-                const x = i * (buildingSize + spacing) - cityWidth * 0.5;
-                const z = (j * (buildingSize + spacing) - CITY_DEPTH * 0.5) + startPositionZ;
+                const x = i * (buildingSize + spacingByX) - cityWidth * 0.5;
+                const z = (j * (buildingSize + spacingByY) - CITY_DEPTH * 0.5) + startPositionZ;
                 const y = height * 0.5;
 
                 building.position.set(x, y, z);
@@ -91,7 +93,7 @@ export class City {
                 this.buildings.push(building);
 
                 if (i !== numBuildingsX - 1) {
-                    const linePositionX = x + buildingSize * 0.5 + spacing * 0.5;
+                    const linePositionX = x + buildingSize * 0.5 + spacingByX * 0.5;
 
                     if (!this.linesBetweenBuilding.includes(linePositionX)) {
                         this.linesBetweenBuilding.push(linePositionX);
