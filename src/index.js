@@ -34,9 +34,9 @@ class App{
         this.renderer.outputEncoding = THREE.SRGBColorSpace;
         this.renderer.physicallyCorrectLights = true;
         container.appendChild(this.renderer.domElement);
-		// this.setEnvironment();
 
 		this.city = new City(this.scene);
+    
         this.loadingBar = new LoadingBar();        
 
         this.loadGLTF();
@@ -89,14 +89,18 @@ class App{
     }
 
     addPlayer(gltf) {
+        const geometry = new THREE.BoxGeometry(2.5, 0.75, 2.25);
+        // const material = new THREE.MeshBasicMaterial({ color: 0xff00ff }); // for debug
+        // const mesh = new THREE.Mesh(geometry, material);
+        const mesh = new THREE.Mesh(geometry);
         this.player = gltf.scene;
         this.player.rotation.y = Math.PI/2;
         this.player.position.y = 80;
         this.player.currentSpeed = DEFAULT_SPEED;
         this.player.scale.set(2.25, 2.25, 2.25);
-
-        this.scene.add(gltf.scene);
-        this.loadingBar.visible = false;
+        this.player.add(mesh);
+        this.player.mesh = this.player.children[1];
+        this.player.direction = new THREE.Vector3(0, 0, -1);
 
         this.mixer = new THREE.AnimationMixer(this.player);
         this.animations = {};
@@ -113,7 +117,7 @@ class App{
         
         this.action = 'fuselage';
 
-        this.scene.add(gltf.scene);
+        this.scene.add(this.player);
         
         this.loadingBar.visible = false;
         
@@ -196,10 +200,6 @@ class App{
             }
             
         }
-    }
-
-    updatePlayer(deltaTime) {
-        this.player.position.z -= this.player.currentSpeed * deltaTime;
     }
 
     set action(name){
@@ -496,6 +496,80 @@ class App{
         this.renderer.setAnimationLoop(null);
 
         console.log("App disposed");
+    }
+
+    updatePlayer(deltaTime) {
+        if (!this.player) {
+            return;
+        }
+
+        if (!this.city) {
+            return;
+        }
+
+        if (!this.city.buildings.length) {
+            return;
+        }
+
+        // Обновляем позицию пули
+        this.player.position.add(this.player.direction.clone().multiplyScalar(this.player.currentSpeed * deltaTime));
+        this.player.mesh.updateMatrixWorld();
+        if (!this.player.boundingBox) {
+            this.player.boundingBox = new THREE.Box3().setFromObject(this.player.mesh);
+        } else {
+            this.player.boundingBox.copy(this.player.mesh.geometry.boundingBox).applyMatrix4(this.player.mesh.matrixWorld);
+        }
+
+        this.playerToCityCollisions();
+        this.playerToEnemyCollisions();
+    }
+
+    playerToCityCollisions() {
+        this.city.buildings.forEach(build => {
+            // Обновляем матрицу и boundingBox врага
+            build.updateMatrixWorld();
+
+            build.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    if (!child.boundingBox) {
+                        child.boundingBox = new THREE.Box3().setFromObject(child);
+                    }
+        
+                    // Обновляем boundingBox врага
+                    child.boundingBox.copy(child.geometry.boundingBox).applyMatrix4(child.matrixWorld);
+
+                    // Проверяем пересечение boundingBox пули и врага
+                    if (this.player.boundingBox.intersectsBox(child.boundingBox)) {
+                        console.log('player to city collision detected');
+                        // this.scene.remove(this.player);
+                    }
+                }
+            });
+        });
+    }
+
+    playerToEnemyCollisions() {
+        this.enemies.forEach(enemy => {
+            // Обновляем матрицу и boundingBox врага
+            enemy.updateMatrixWorld();
+
+            enemy.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    if (!child.boundingBox) {
+                        child.boundingBox = new THREE.Box3().setFromObject(child);
+                    }
+        
+                    // Обновляем boundingBox врага
+                    child.boundingBox.copy(child.geometry.boundingBox).applyMatrix4(child.matrixWorld);
+
+                    // Проверяем пересечение boundingBox пули и врага
+                    if (this.player.boundingBox.intersectsBox(child.boundingBox)) {
+                        console.log('player to enemy collision detected');
+                        // this.scene.remove(this.player);
+                    }
+                }
+            });
+        });
     }
 
 	render() {
