@@ -90,9 +90,8 @@ class App{
 
     addPlayer(gltf) {
         const geometry = new THREE.BoxGeometry(2.5, 0.75, 2.25);
-        // const material = new THREE.MeshBasicMaterial({ color: 0xff00ff }); // for debug
-        // const mesh = new THREE.Mesh(geometry, material);
-        const mesh = new THREE.Mesh(geometry);
+        const material = new THREE.MeshBasicMaterial({ color: 0xff00ff, visible: false }); // remove visble for debug
+        const mesh = new THREE.Mesh(geometry, material);
         this.player = gltf.scene;
         this.player.rotation.y = Math.PI/2;
         this.player.position.y = 80;
