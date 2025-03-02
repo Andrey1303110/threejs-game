@@ -157,8 +157,8 @@ class App{
         const enemy = gltf.scene.clone();
         enemy.rotation.y = Math.PI * 1.5;
         
-        const xIndex = getRandomInRange(0, lines.length-1);
-        // const xIndex = 3;
+        // const xIndex = getRandomInRange(0, lines.length-1);
+        const xIndex = 3;
         const x = lines[xIndex];
         const y = getRandomInRange(60, 90);
         const startPositionOffset = 180;
@@ -189,8 +189,7 @@ class App{
                 const enemy = this.enemies[i];
                 
                 if (enemy.position.z >= this.player.position.z + cameraOffset) {
-                    enemy.remove();
-                    enemy.clear()
+                    this.scene.remove(enemy);
                     return this.enemies.splice(i, 1);
                 }
 
@@ -351,105 +350,65 @@ class App{
 
     shoot() {
         if (!this.keys.shoot) {
-            return
+            return;
         }
 
         const reloadTime = 0.4;
-
         if (this.clock.elapsedTime <= this.lastShootTime + reloadTime) {
-            return
+            return;
         }
 
         // Создаём пулю
         const bulletGeometry = new THREE.SphereGeometry(0.25, 8, 8);
         const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-        
+
         // Позиционируем пулю перед объектом
         bullet.position.set(this.player.position.x, this.player.position.y, this.player.position.z - 0.5);
+        bullet.velocity = new THREE.Vector3(0, 0, -MAX_SPEED * 3); // Скорость движения
+        bullet.lifetime = 2; // Время жизни в секундах
+
         this.scene.add(bullet);
-        
-        // Анимация пули - перемещение вперед
-        const bulletSpeed = MAX_SPEED * 3; // Скорость полета пули
-        const bulletLifetime = 2; // Время жизни пули в секундах
-
-        const shootDirection = new THREE.Vector3(0, 0, -1); // Двигаем пулю вперед
-        this.bullets.push({ mesh: bullet, direction: shootDirection, speed: bulletSpeed, lifetime: bulletLifetime });
-
+        this.bullets.push(bullet);
         this.lastShootTime = this.clock.elapsedTime;
     }
 
     // Обновление пуль в рендере
     updateBullets(deltaTime) {
-        if (!this.bullets) {
+        if (!this.bullets.length) {
             return;
         }
 
-        const bulletsToRemove = [];
-        const enemiesToRemove = [];
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const bullet = this.bullets[i];
 
-        this.bullets.forEach((bullet, bulletIndex) => {
             // Обновляем позицию пули
-            bullet.mesh.position.add(bullet.direction.clone().multiplyScalar(bullet.speed * deltaTime));
+            bullet.position.addScaledVector(bullet.velocity, deltaTime);
+
+            // Уменьшаем время жизни
             bullet.lifetime -= deltaTime;
 
-            // Обновляем матрицу и boundingBox пули
-            bullet.mesh.updateMatrixWorld();
-            if (!bullet.boundingBox) {
-                bullet.boundingBox = new THREE.Box3().setFromObject(bullet.mesh);
-            } else {
-                bullet.boundingBox.copy(bullet.mesh.geometry.boundingBox).applyMatrix4(bullet.mesh.matrixWorld);
+            // Проверяем столкновение с врагами
+            for (let j = this.enemies.length - 1; j >= 0; j--) {
+                const enemy = this.enemies[j];
+                const distance = bullet.position.distanceTo(enemy.position);
+                if (distance < 3) { // Если пуля попала во врага
+                    this.scene.remove(bullet);
+                    this.scene.remove(enemy);
+                    this.bullets.splice(i, 1);
+                    this.enemies.splice(j, 1);
+                    return;
+                }
             }
 
-            // Проверяем коллизию пули с врагами
-            this.enemies.forEach((enemy, enemyIndex) => {
-                // Обновляем матрицу и boundingBox врага
-                enemy.updateMatrixWorld();
-
-                enemy.traverse((child) => {
-                    if (child instanceof THREE.Mesh) {
-                        if (!child.boundingBox) {
-                            child.boundingBox = new THREE.Box3().setFromObject(child);
-                        }
-            
-                        // Обновляем boundingBox врага
-                        child.boundingBox.copy(child.geometry.boundingBox).applyMatrix4(child.matrixWorld);
-
-                        // Проверяем пересечение boundingBox пули и врага
-                        if (bullet.boundingBox.intersectsBox(child.boundingBox)) {
-                            console.log(`Collision detected between bullet and enemy #${enemyIndex}!`);
-
-                            // Записываем объекты для удаления
-                            enemiesToRemove.push(enemyIndex);
-                            bulletsToRemove.push(bulletIndex);
-                        }
-                    }
-                });
-            });
-
-            // Удаляем пулю, если её время жизни истекло
+            // Удаляем пулю, если она прожила дольше, чем lifetime
             if (bullet.lifetime <= 0) {
-                bulletsToRemove.push(bulletIndex);
+                this.scene.remove(bullet);
+                this.bullets.splice(i, 1);
             }
-        });
-
-        // Удаляем пули
-        bulletsToRemove.forEach((bulletIndex) => {
-            const bullet = this.bullets[bulletIndex];
-            if (!bullet || !bullet.mesh) {
-                return;
-            }
-    
-            this.scene.remove(bullet);
-            this.bullets.splice(bulletIndex, 1);
-        });
-
-        // Удаляем врагов
-        enemiesToRemove.forEach((enemyIndex) => {
-            this.scene.remove(this.enemies[enemyIndex]);
-            this.enemies.splice(enemyIndex, 1);
-        });
+        }
     }
+
     
     resize(){
         this.camera.aspect = window.innerWidth / window.innerHeight;
