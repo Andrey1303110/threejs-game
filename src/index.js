@@ -3,6 +3,7 @@ import { LoadingBar } from './LoadingBar.js';
 import { City } from './City.js';
 import { GLTFLoader } from './loaders/GLTFLoader.js';
 import { DRACOLoader } from './loaders/DRACOLoader.js';
+import { VRButton } from 'three/examples/jsm/Addons.js';
 
 // const DEFAULT_SPEED = 0;
 const DEFAULT_SPEED = 10;
@@ -14,10 +15,9 @@ class App{
 		document.body.appendChild(container);
 
         this.clock = new THREE.Clock();
-        
-		this.camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 500);
-        this.camera.position.set(0, 125, 0);
-        
+
+		this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 500);
+
 		this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0xefd1b5);
         
@@ -27,13 +27,41 @@ class App{
         const light = new THREE.DirectionalLight(0xFFFFFF, 4);
         light.position.set(0, 1, 1);
         this.scene.add(light);
+
+        this.playerRig = new THREE.Group();
+        this.playerRig.position.set(0, 50, 0);
+
+        // камера теперь внутри rig
+        this.playerRig.add(this.camera);
+        this.scene.add(this.playerRig);
 			
 		this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        this.renderer.xr.enabled = true;
 		this.renderer.setPixelRatio(window.devicePixelRatio);
 		this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.outputEncoding = THREE.SRGBColorSpace;
         this.renderer.physicallyCorrectLights = true;
+        this.controller1 = this.renderer.xr.getController(0);
+        this.controller2 = this.renderer.xr.getController(1);
+
+        this.controller1.addEventListener('selectstart', () => {
+            this.shoot();
+        });
+
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, -1)
+        ]);
+
+        const line = new THREE.Line(geometry);
+        line.scale.z = 5;
+
+        this.controller1.add(line);
+
+        this.scene.add(this.controller1);
+        this.scene.add(this.controller2);
         container.appendChild(this.renderer.domElement);
+        document.body.appendChild(VRButton.createButton(this.renderer));
 
 		this.city = new City(this.scene);
     
@@ -94,12 +122,14 @@ class App{
         const mesh = new THREE.Mesh(geometry, material);
         this.player = gltf.scene;
         this.player.rotation.y = Math.PI/2;
-        this.player.position.y = 80;
+        this.playerRig.position.y = 80;
         this.player.currentSpeed = DEFAULT_SPEED;
         this.player.scale.set(2.25, 2.25, 2.25);
         this.player.add(mesh);
         this.player.mesh = this.player.children[1];
-        this.player.direction = new THREE.Vector3(0, 0, -1);
+        // this.player.direction = new THREE.Vector3(0, 0, -1);
+        const direction = new THREE.Vector3();
+        this.camera.getWorldDirection(direction);
 
         this.mixer = new THREE.AnimationMixer(this.player);
         this.animations = {};
@@ -116,7 +146,7 @@ class App{
         
         this.action = 'fuselage';
 
-        this.scene.add(this.player);
+        this.playerRig.add(this.player);
         
         this.loadingBar.visible = false;
         
@@ -188,7 +218,7 @@ class App{
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const enemy = this.enemies[i];
                 
-                if (enemy.position.z >= this.player.position.z + cameraOffset) {
+                if (enemy.position.z >= this.playerRig.position.z + cameraOffset) {
                     this.scene.remove(enemy);
                     return this.enemies.splice(i, 1);
                 }
@@ -247,7 +277,7 @@ class App{
     }
 
     updateCamera(deltaTime) {
-        if (!this.player || !this.player.position) {
+        if (!this.player || !this.playerRig.position) {
             console.error("Player или его позиция не определены!");
             return;
         }
@@ -255,12 +285,12 @@ class App{
         const offset = new THREE.Vector3(0, 3, 8); // Смещение камеры
         const elasticity = 2; // Параметр эластичности
 
-        const targetPosition = new THREE.Vector3().copy(this.player.position).add(offset);
+        const targetPosition = new THREE.Vector3().copy(this.playerRig.position).add(offset);
 
         this.camera.position.lerp(targetPosition, deltaTime * elasticity);
 
         // Камера смотрит на игрока
-        this.camera.lookAt(this.player.position);
+        this.camera.lookAt(this.playerRig.position);
     }
 
     updateMovement(deltaTime) {
@@ -269,10 +299,10 @@ class App{
 
         // Двигаем объект в зависимости от нажатых клавиш
         if (this.keys.forward) {
-            this.player.position.y += this.player.currentSpeed * deltaTime; // Вверх
+            this.playerRig.position.y += this.player.currentSpeed * deltaTime; // Вверх
         }
         if (this.keys.backward) {
-            this.player.position.y -= this.player.currentSpeed * deltaTime; // Вниз
+            this.playerRig.position.y -= this.player.currentSpeed * deltaTime; // Вниз
         }
 
         // Управляем наклоном
@@ -329,7 +359,7 @@ class App{
 
             // Двигаем объект по оси X только если угол уже вернулся к 0 или начал наклоняться в нужную сторону
             if (Math.abs(this.tiltAngle) < 0.01 || Math.sign(this.tiltAngle) === direction) {
-                this.player.position.x += direction * this.player.currentSpeed * 2 * deltaTime;
+                this.playerRig.position.x += direction * this.player.currentSpeed * 2 * deltaTime;
             }
         }
     }
@@ -349,28 +379,21 @@ class App{
     }
 
     shoot() {
-        if (!this.keys.shoot) {
-            return;
-        }
+        const bullet = this.createBullet();
 
-        const reloadTime = 0.4;
-        if (this.clock.elapsedTime <= this.lastShootTime + reloadTime) {
-            return;
-        }
+        // 📍 позиция = откуда стреляет контроллер
+        const position = new THREE.Vector3();
+        position.setFromMatrixPosition(this.controller1.matrixWorld);
 
-        // Создаём пулю
-        const bulletGeometry = new THREE.SphereGeometry(0.25, 8, 8);
-        const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+        // 📍 направление = куда "смотрит" контроллер
+        const direction = new THREE.Vector3();
+        this.controller1.getWorldDirection(direction);
 
-        // Позиционируем пулю перед объектом
-        bullet.position.set(this.player.position.x, this.player.position.y, this.player.position.z - 0.5);
-        bullet.velocity = new THREE.Vector3(0, 0, -MAX_SPEED * 3); // Скорость движения
-        bullet.lifetime = 2; // Время жизни в секундах
+        // применяем
+        bullet.position.copy(position);
+        bullet.velocity = direction.multiplyScalar(10);
 
         this.scene.add(bullet);
-        this.bullets.push(bullet);
-        this.lastShootTime = this.clock.elapsedTime;
     }
 
     // Обновление пуль в рендере
@@ -469,7 +492,9 @@ class App{
         }
 
         // Обновляем позицию пули
-        this.player.position.add(this.player.direction.clone().multiplyScalar(this.player.currentSpeed * deltaTime));
+        //camera.getWorldDirection()
+        // this.playerRig.position.add(this.camera.getWorldDirection().multiplyScalar(this.player.currentSpeed * deltaTime));
+        // this.playerRig.position.add(this.camera.getWorldDirection().multiplyScalar(this.player.currentSpeed * deltaTime));
         this.player.mesh.updateMatrixWorld();
         if (!this.player.boundingBox) {
             this.player.boundingBox = new THREE.Box3().setFromObject(this.player.mesh);
