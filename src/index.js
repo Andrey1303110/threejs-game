@@ -7,7 +7,7 @@ import { VRButton } from 'three/examples/jsm/Addons.js';
 
 // const DEFAULT_SPEED = 0;
 const DEFAULT_SPEED = 10;
-const MAX_SPEED = 25;
+const MAX_SPEED = 50;
 
 class App{
 	constructor(){
@@ -28,11 +28,17 @@ class App{
         light.position.set(0, 1, 1);
         this.scene.add(light);
 
+        // playerRig — это весь игрок + камера
         this.playerRig = new THREE.Group();
-        this.playerRig.position.set(0, 50, 0);
+        this.playerRig.position.set(0, 80, 0); // стартовая высота игрока
 
-        // камера теперь внутри rig
-        this.playerRig.add(this.camera);
+        // pivot для камеры — просто точка, относительно которой камера смотрит на игрока
+        this.cameraPivot = new THREE.Group();
+        // cameraPivot — выше игрока
+        this.cameraPivot.position.set(0, 1.5, 1);
+
+        this.cameraPivot.add(this.camera);
+        this.playerRig.add(this.cameraPivot);
         this.scene.add(this.playerRig);
 			
 		this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -44,7 +50,7 @@ class App{
         this.controller1 = this.renderer.xr.getController(0);
         this.controller2 = this.renderer.xr.getController(1);
 
-        this.controller1.addEventListener('selectstart', () => {
+        this.controller2.addEventListener('selectstart', () => {
             this.shoot();
         });
 
@@ -276,23 +282,6 @@ class App{
         window.addEventListener('keyup', (event) => updateKey(event, false));
     }
 
-    updateCamera(deltaTime) {
-        if (!this.player || !this.playerRig.position) {
-            console.error("Player или его позиция не определены!");
-            return;
-        }
-
-        const offset = new THREE.Vector3(0, 3, 8); // Смещение камеры
-        const elasticity = 2; // Параметр эластичности
-
-        const targetPosition = new THREE.Vector3().copy(this.playerRig.position).add(offset);
-
-        this.camera.position.lerp(targetPosition, deltaTime * elasticity);
-
-        // Камера смотрит на игрока
-        this.camera.lookAt(this.playerRig.position);
-    }
-
     updateMovement(deltaTime) {
         const maxTilt = Math.PI / 2 * 0.65; // максимальный угол наклона (треть от 180)
         const tiltSpeed = 0.75; // скорость наклона
@@ -322,13 +311,53 @@ class App{
             }
         }
 
-        if (this.keys.acceleration) {
-            this.accelerate();
+        // if (this.keys.acceleration) {
+        //     this.accelerate();
+        // }
+
+        // if (!this.keys.acceleration) {
+        //     this.brake();
+        // }
+
+        let isAccelerate = false;
+        let isBrake = false;
+        const session = this.renderer.xr.getSession();
+
+        if (session) {
+            for (const source of session.inputSources) {
+                if (!source.gamepad) continue;
+            
+                const axes = source.gamepad.axes;
+
+                const horizontal = applyDeadZone(axes[2]);
+                const vertical = applyDeadZone(axes[3]);
+                
+                this.handleMovementInput(horizontal, vertical, deltaTime);
+                
+                // 👉 ВОТ СЮДА ВСТАВЛЯЕШЬ скорость
+                const gamepad = source.gamepad;
+
+                if (source.handedness === 'right') {
+                    isAccelerate = gamepad.buttons[1]?.value > 0;
+                }
+                if (source.handedness === 'left') {
+                    isBrake = gamepad.buttons[1]?.value > 0;
+                }
+            }
         }
 
-        if (!this.keys.acceleration) {
-            this.deAccelerate();
+        if (isAccelerate) {
+            this.accelerate();
         }
+        if (isBrake) {
+            this.brake();
+        }
+        
+        this.player.currentSpeed = THREE.MathUtils.clamp(
+            this.player.currentSpeed,
+            5,
+            50
+        );
 
         // Устанавливаем начальный поворот по оси Z (90 градусов)
         const initialRotationZ = Math.PI * 0.5; // Поворот на 90 градусов
@@ -339,6 +368,26 @@ class App{
         // Устанавливаем поворот объекта, комбинируя начальный поворот и наклон
         this.player.rotation.set(0, initialRotationZ, 0); // Начальный поворот по Z
         this.player.rotateOnAxis(tiltAxis, this.tiltAngle); // Наклоняем объект относительно Y
+    }
+
+    handleMovementInput(x, y, deltaTime) {
+        const moveSpeed = 10;
+      
+        // 👉 вправо/влево
+        const right = new THREE.Vector3(1, 0, 0);
+        right.applyQuaternion(this.playerRig.quaternion);
+      
+        this.playerRig.position.addScaledVector(
+          right,
+          x * moveSpeed * deltaTime
+        );
+      
+        // 👉 вверх/вниз
+        this.playerRig.position.y += -y * moveSpeed * deltaTime;
+      
+        // 🔥 ВОТ СЮДА ДОБАВЬ TILT
+        this.player.rotation.z = -x * 0.5;
+        this.player.rotation.x = y * 0.3;
     }
 
     turn(direction, tiltSpeed, deltaTime, maxTilt) {
@@ -365,35 +414,45 @@ class App{
     }
 
     accelerate() {
-        const increment = 0.25;
+        const increment = 0.15;
         const newSpeed = this.player.currentSpeed + increment;
 
         this.player.currentSpeed = Math.min(newSpeed, MAX_SPEED);
     }
 
-    deAccelerate() {
-        const decrement = 0.75;
+    brake() {
+        const decrement = 0.5;
         const newSpeed = this.player.currentSpeed - decrement;
 
         this.player.currentSpeed = Math.max(newSpeed, DEFAULT_SPEED);
     }
 
+
     shoot() {
-        const bullet = this.createBullet();
+        const reloadTime = 0.4;
+        if (this.clock.elapsedTime <= this.lastShootTime + reloadTime) {
+            return;
+        }
 
-        // 📍 позиция = откуда стреляет контроллер
-        const position = new THREE.Vector3();
-        position.setFromMatrixPosition(this.controller1.matrixWorld);
+        // Создаём пулю
+        const bulletGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+        const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
 
-        // 📍 направление = куда "смотрит" контроллер
-        const direction = new THREE.Vector3();
-        this.controller1.getWorldDirection(direction);
+        // Позиционируем пулю перед объектом
+        const position = this.playerRig.position.clone();
 
+        // 📍 направление = куда смотрит контроллер
+        const direction = new THREE.Vector3(0, 0, -1);
+        
         // применяем
         bullet.position.copy(position);
-        bullet.velocity = direction.multiplyScalar(10);
+        bullet.velocity = direction.multiplyScalar(MAX_SPEED * 2);
+        bullet.lifetime = 2; // Время жизни в секундах
 
         this.scene.add(bullet);
+        this.bullets.push(bullet);
+        this.lastShootTime = this.clock.elapsedTime;
     }
 
     // Обновление пуль в рендере
@@ -479,31 +538,30 @@ class App{
     }
 
     updatePlayer(deltaTime) {
-        if (!this.player) {
-            return;
-        }
-
-        if (!this.city) {
-            return;
-        }
-
-        if (!this.city.buildings.length) {
-            return;
-        }
-
-        // Обновляем позицию пули
-        //camera.getWorldDirection()
-        // this.playerRig.position.add(this.camera.getWorldDirection().multiplyScalar(this.player.currentSpeed * deltaTime));
-        // this.playerRig.position.add(this.camera.getWorldDirection().multiplyScalar(this.player.currentSpeed * deltaTime));
+        if (!this.player) return;
+    
+        // движение игрока
+        const forward = new THREE.Vector3(0, 0, -1);
+        forward.applyQuaternion(this.playerRig.quaternion);
+        this.playerRig.position.addScaledVector(forward, this.player.currentSpeed * deltaTime);
+    
+        // обновляем boundingBox игрока
         this.player.mesh.updateMatrixWorld();
         if (!this.player.boundingBox) {
             this.player.boundingBox = new THREE.Box3().setFromObject(this.player.mesh);
         } else {
             this.player.boundingBox.copy(this.player.mesh.geometry.boundingBox).applyMatrix4(this.player.mesh.matrixWorld);
         }
-
+    
+        // Обновляем коллизии
         this.playerToCityCollisions();
         this.playerToEnemyCollisions();
+    
+        // 🔥 Правильный lookAt камеры
+        const dronePosition = new THREE.Vector3();
+        this.player.getWorldPosition(dronePosition);
+    
+        this.camera.lookAt(dronePosition); // камера всегда смотрит на дрон
     }
 
     playerToCityCollisions() {
@@ -559,13 +617,11 @@ class App{
 
         this.addEnemy();
         this.updateMovement(deltaTime);
-        this.updateCamera(deltaTime);
         this.updateBullets(deltaTime); // Обновление полета пуль
         this.updateEnemies(deltaTime);
         this.updatePlayer(deltaTime);
     
         if (this.mixer) this.mixer.update(deltaTime);
-        if (this.keys.shoot) this.shoot(); // Проверяем, нужно ли стрелять
  
         this.renderer.render(this.scene, this.camera);
     }
@@ -573,6 +629,10 @@ class App{
 
 export function getRandomInRange(min, max) {
     return Math.floor(min + Math.random() * (max + 1 - min));
+}
+
+function applyDeadZone(value, threshold = 0.1) {
+    return Math.abs(value) > threshold ? value : 0;
 }
 
 document.addEventListener("DOMContentLoaded", function(){
