@@ -450,23 +450,32 @@ class App{
         if (this.clock.elapsedTime <= this.lastShootTime + reloadTime) {
             return;
         }
-
-        // Создаём пулю
+    
         const bulletGeometry = new THREE.SphereGeometry(0.25, 8, 8);
         const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
-
-        // Позиционируем пулю перед объектом
-        const position = this.playerRig.position.clone();
-
-        // 📍 направление = куда смотрит контроллер
+    
+        // обновляем мировые матрицы перед вычислением направления
+        this.player.updateMatrixWorld(true);
+    
+        // берём мировую позицию дрона
+        const spawnPosition = new THREE.Vector3();
+        this.player.getWorldPosition(spawnPosition);
+    
+        // берём направление "вперёд" относительно поворота дрона
         const direction = new THREE.Vector3(0, 0, -1);
-        
-        // применяем
-        bullet.position.copy(position);
-        bullet.velocity = direction.multiplyScalar(MAX_SPEED * 2);
-        bullet.lifetime = 2; // Время жизни в секундах
-
+        const worldQuaternion = new THREE.Quaternion();
+        this.tiltGroup.getWorldQuaternion(worldQuaternion);
+        direction.applyQuaternion(worldQuaternion).normalize();
+    
+        // немного выносим точку спавна вперёд, чтобы пуля не появлялась внутри дрона
+        const muzzleOffset = 3;
+        spawnPosition.addScaledVector(direction, muzzleOffset);
+    
+        bullet.position.copy(spawnPosition);
+        bullet.velocity = direction.clone().multiplyScalar(MAX_SPEED * 2);
+        bullet.lifetime = 2;
+    
         this.scene.add(bullet);
         this.bullets.push(bullet);
         this.lastShootTime = this.clock.elapsedTime;
