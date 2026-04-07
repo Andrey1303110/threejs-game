@@ -9,6 +9,8 @@ import { VRButton } from 'three/examples/jsm/Addons.js';
 const DEFAULT_SPEED = 10;
 const MAX_SPEED = 50;
 
+//дрон всё равно бесконечно крутится когда жмеш влево или вправо.
+
 class App{
 	constructor(){
 		const container = document.createElement('div');
@@ -79,8 +81,11 @@ class App{
         this.enemies = [];
         this.lastShootTime = 0;
         this.lastEnemyIndex = 0;
-        this.tiltAngle = 0;
         this.enemyCount = 0;
+        this.tiltVelocity = 0;
+        this.yawVelocity = 0;
+        this.tiltAngle = 0;
+        this.yawAngle = 0;
 
 		this.scene.fog = new THREE.FogExp2(0xefd1b5, 0.01);
 
@@ -124,38 +129,49 @@ class App{
 
     addPlayer(gltf) {
         const geometry = new THREE.BoxGeometry(2.5, 0.75, 2.25);
-        const material = new THREE.MeshBasicMaterial({ color: 0xff00ff, visible: false }); // remove visble for debug
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xff00ff,
+            visible: false
+        });
         const mesh = new THREE.Mesh(geometry, material);
-        this.player = gltf.scene;
-        this.player.rotation.y = Math.PI/2;
-        this.playerRig.position.y = 80;
+    
+        this.player = new THREE.Group();
+        this.yawGroup = new THREE.Group();
+        this.tiltGroup = new THREE.Group();
+        this.modelRoot = new THREE.Group();
+        this.model = gltf.scene;
+    
         this.player.currentSpeed = DEFAULT_SPEED;
-        this.player.scale.set(2.25, 2.25, 2.25);
-        this.player.add(mesh);
-        this.player.mesh = this.player.children[1];
-        // this.player.direction = new THREE.Vector3(0, 0, -1);
-        const direction = new THREE.Vector3();
-        this.camera.getWorldDirection(direction);
-
-        this.mixer = new THREE.AnimationMixer(this.player);
+    
+        this.model.scale.set(2.25, 2.25, 2.25);
+    
+        // базовый поворот модели
+        this.modelRoot.rotation.y = Math.PI / 2;
+    
+        this.model.add(mesh);
+        this.player.mesh = mesh;
+    
+        this.modelRoot.add(this.model);
+        this.tiltGroup.add(this.modelRoot);
+        this.yawGroup.add(this.tiltGroup);
+        this.player.add(this.yawGroup);
+        this.playerRig.add(this.player);
+    
+        this.mixer = new THREE.AnimationMixer(this.model);
         this.animations = {};
-
+    
         const names = [];
-
         gltf.animations.forEach(clip => {
             const name = clip.name.toLowerCase();
             names.push(name);
             this.animations[name] = clip;
-        })
-
+        });
+    
         console.log(`animations: ${names.join(',')}`);
-        
+    
         this.action = 'fuselage';
-
-        this.playerRig.add(this.player);
-        
+    
         this.loadingBar.visible = false;
-        
         this.renderer.setAnimationLoop(this.render.bind(this));
     }
 
@@ -283,91 +299,94 @@ class App{
     }
 
     updateMovement(deltaTime) {
-        const maxTilt = Math.PI / 2 * 0.65; // максимальный угол наклона (треть от 180)
-        const tiltSpeed = 0.75; // скорость наклона
-
-        // Двигаем объект в зависимости от нажатых клавиш
-        if (this.keys.forward) {
-            this.playerRig.position.y += this.player.currentSpeed * deltaTime; // Вверх
-        }
-        if (this.keys.backward) {
-            this.playerRig.position.y -= this.player.currentSpeed * deltaTime; // Вниз
-        }
-
-        // Управляем наклоном
-        if (this.keys.left) {
-            this.turn(-1, tiltSpeed, deltaTime, maxTilt);
-        }
-        if (this.keys.right) {
-            this.turn(1, tiltSpeed, deltaTime, maxTilt);
-        }
-
-        // Если клавиши влево/вправо не нажаты, плавно возвращаем угол к 0
-        if (!this.keys.left && !this.keys.right) {
-            if (this.tiltAngle > 0) {
-                this.tiltAngle = Math.max(this.tiltAngle - tiltSpeed * deltaTime, 0);
-            } else if (this.tiltAngle < 0) {
-                this.tiltAngle = Math.min(this.tiltAngle + tiltSpeed * deltaTime, 0);
-            }
-        }
-
-        // if (this.keys.acceleration) {
-        //     this.accelerate();
-        // }
-
-        // if (!this.keys.acceleration) {
-        //     this.brake();
-        // }
-
         let isAccelerate = false;
         let isBrake = false;
-        const session = this.renderer.xr.getSession();
-
-        if (session) {
-            for (const source of session.inputSources) {
-                if (!source.gamepad) continue;
-            
-                const axes = source.gamepad.axes;
-
-                const horizontal = applyDeadZone(axes[2]);
-                const vertical = applyDeadZone(axes[3]);
-                
-                this.handleMovementInput(horizontal, vertical, deltaTime);
-                
-                // 👉 ВОТ СЮДА ВСТАВЛЯЕШЬ скорость
-                const gamepad = source.gamepad;
-
-                if (source.handedness === 'right') {
-                    isAccelerate = gamepad.buttons[1]?.value > 0;
-                }
-                if (source.handedness === 'left') {
-                    isBrake = gamepad.buttons[1]?.value > 0;
+    
+        const maxTilt = Math.PI / 3;   // максимум крена
+        const maxYaw = Math.PI / 6;    // максимум поворота корпуса
+        const maxPitch = 0.15;         // максимум тангажа
+    
+        let horizontal = 0;
+        let vertical = 0;
+    
+        if (this.renderer.xr.isPresenting) {
+            const session = this.renderer.xr.getSession();
+    
+            if (session) {
+                for (const source of session.inputSources) {
+                    if (!source.gamepad) continue;
+    
+                    const axes = source.gamepad.axes;
+    
+                    horizontal = applyDeadZone(axes[2], 0.15);
+                    vertical = applyDeadZone(axes[3], 0.1);
+    
+                    this.handleMovementInput(horizontal, vertical, deltaTime);
+    
+                    if (source.handedness === 'right') {
+                        isAccelerate = source.gamepad.buttons[1]?.value > 0;
+                    }
+    
+                    if (source.handedness === 'left') {
+                        isBrake = source.gamepad.buttons[1]?.value > 0;
+                    }
                 }
             }
         }
-
-        if (isAccelerate) {
-            this.accelerate();
-        }
-        if (isBrake) {
-            this.brake();
-        }
-        
+    
+        // Нелинейная чувствительность стика
+        const inputCurve = horizontal * Math.abs(horizontal);
+    
+        const targetTilt = -inputCurve * maxTilt;
+        const targetYaw = -inputCurve * maxYaw;
+        const targetPitch = -vertical * maxPitch;
+    
+        // --- КРЕН ---
+        const tiltAcceleration = 3;
+        const tiltDamping = 10;
+    
+        const tiltForce = targetTilt - this.tiltAngle;
+        this.tiltVelocity += tiltForce * tiltAcceleration * deltaTime;
+        this.tiltVelocity *= Math.max(0, 1 - tiltDamping * deltaTime);
+        this.tiltAngle += this.tiltVelocity;
+    
+        this.tiltAngle = THREE.MathUtils.clamp(
+            this.tiltAngle,
+            -maxTilt,
+            maxTilt
+        );
+    
+        // --- ПОВОРОТ КОРПУСА ---
+        const yawAcceleration = 3;
+        const yawDamping = 20;
+    
+        const yawForce = targetYaw - this.yawAngle;
+        this.yawVelocity += yawForce * yawAcceleration * deltaTime;
+        this.yawVelocity *= Math.max(0, 1 - yawDamping * deltaTime);
+        this.yawAngle += this.yawVelocity;
+    
+        this.yawAngle = THREE.MathUtils.clamp(
+            this.yawAngle,
+            -maxYaw,
+            maxYaw
+        );
+    
+        // ВАЖНО:
+        // yaw отдельно
+        this.yawGroup.rotation.y = this.yawAngle;
+    
+        // pitch + roll отдельно
+        this.tiltGroup.rotation.x = targetPitch;
+        this.tiltGroup.rotation.z = this.tiltAngle;
+    
+        if (isAccelerate) this.accelerate();
+        if (isBrake) this.brake();
+    
         this.player.currentSpeed = THREE.MathUtils.clamp(
             this.player.currentSpeed,
             5,
             50
         );
-
-        // Устанавливаем начальный поворот по оси Z (90 градусов)
-        const initialRotationZ = Math.PI * 0.5; // Поворот на 90 градусов
-
-        // Создаем вектор оси для наклона по локальной оси Y (влево-вправо)
-        const tiltAxis = new THREE.Vector3(1, 0, 0); // Ось Y для наклона
-
-        // Устанавливаем поворот объекта, комбинируя начальный поворот и наклон
-        this.player.rotation.set(0, initialRotationZ, 0); // Начальный поворот по Z
-        this.player.rotateOnAxis(tiltAxis, this.tiltAngle); // Наклоняем объект относительно Y
     }
 
     handleMovementInput(x, y, deltaTime) {
@@ -384,10 +403,6 @@ class App{
       
         // 👉 вверх/вниз
         this.playerRig.position.y += -y * moveSpeed * deltaTime;
-      
-        // 🔥 ВОТ СЮДА ДОБАВЬ TILT
-        this.player.rotation.z = -x * 0.5;
-        this.player.rotation.x = y * 0.3;
     }
 
     turn(direction, tiltSpeed, deltaTime, maxTilt) {
@@ -410,7 +425,9 @@ class App{
             if (Math.abs(this.tiltAngle) < 0.01 || Math.sign(this.tiltAngle) === direction) {
                 this.playerRig.position.x += direction * this.player.currentSpeed * 2 * deltaTime;
             }
+            console.log('tilt angle: ', this.tiltAngle);
         }
+        this.tiltAngle;
     }
 
     accelerate() {
@@ -542,8 +559,12 @@ class App{
     
         // движение игрока
         const forward = new THREE.Vector3(0, 0, -1);
-        forward.applyQuaternion(this.playerRig.quaternion);
-        this.playerRig.position.addScaledVector(forward, this.player.currentSpeed * deltaTime);
+        forward.applyQuaternion(this.yawGroup.getWorldQuaternion(new THREE.Quaternion()));
+        
+        this.playerRig.position.addScaledVector(
+            forward,
+            this.player.currentSpeed * deltaTime
+        );
     
         // обновляем boundingBox игрока
         this.player.mesh.updateMatrixWorld();
@@ -631,7 +652,7 @@ export function getRandomInRange(min, max) {
     return Math.floor(min + Math.random() * (max + 1 - min));
 }
 
-function applyDeadZone(value, threshold = 0.1) {
+function applyDeadZone(value, threshold) {
     return Math.abs(value) > threshold ? value : 0;
 }
 
