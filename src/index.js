@@ -455,26 +455,31 @@ class App{
         const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
     
-        // обновляем мировые матрицы перед вычислением направления
         this.player.updateMatrixWorld(true);
     
-        // берём мировую позицию дрона
         const spawnPosition = new THREE.Vector3();
         this.player.getWorldPosition(spawnPosition);
     
-        // берём направление "вперёд" относительно поворота дрона
         const direction = new THREE.Vector3(0, 0, -1);
         const worldQuaternion = new THREE.Quaternion();
+    
+        // если нужно учитывать и наклон вверх/вниз, оставляй tiltGroup
         this.tiltGroup.getWorldQuaternion(worldQuaternion);
         direction.applyQuaternion(worldQuaternion).normalize();
     
-        // немного выносим точку спавна вперёд, чтобы пуля не появлялась внутри дрона
         const muzzleOffset = 3;
         spawnPosition.addScaledVector(direction, muzzleOffset);
     
         bullet.position.copy(spawnPosition);
-        bullet.velocity = direction.clone().multiplyScalar(MAX_SPEED * 2);
-        bullet.lifetime = 2;
+    
+        // начальная скорость
+        const initialSpeed = MAX_SPEED * 3;
+        bullet.velocity = direction.clone().multiplyScalar(initialSpeed);
+    
+        // физика
+        bullet.gravity = new THREE.Vector3(0, -14, 0);
+        bullet.drag = 0.25;
+        bullet.lifetime = 5;
     
         this.scene.add(bullet);
         this.bullets.push(bullet);
@@ -486,37 +491,49 @@ class App{
         if (!this.bullets.length) {
             return;
         }
-
+    
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
-
-            // Обновляем позицию пули
+    
+            // гравитация
+            bullet.velocity.addScaledVector(bullet.gravity, deltaTime);
+    
+            // сопротивление воздуха
+            const dragFactor = Math.max(0, 1 - bullet.drag * deltaTime);
+            bullet.velocity.multiplyScalar(dragFactor);
+    
+            // движение
             bullet.position.addScaledVector(bullet.velocity, deltaTime);
-
-            // Уменьшаем время жизни
+    
+            // уменьшаем время жизни
             bullet.lifetime -= deltaTime;
-
-            // Проверяем столкновение с врагами
+    
+            // столкновение с врагами
             for (let j = this.enemies.length - 1; j >= 0; j--) {
                 const enemy = this.enemies[j];
                 const distance = bullet.position.distanceTo(enemy.position);
-                if (distance < 3) { // Если пуля попала во врага
+    
+                if (distance < 3) {
                     this.scene.remove(bullet);
                     this.scene.remove(enemy);
                     this.bullets.splice(i, 1);
                     this.enemies.splice(j, 1);
-                    return;
+                    break;
                 }
             }
-
-            // Удаляем пулю, если она прожила дольше, чем lifetime
-            if (bullet.lifetime <= 0) {
+    
+            // если пуля уже удалена после попадания
+            if (!this.bullets[i]) {
+                continue;
+            }
+    
+            // удаление по времени жизни или если слишком низко упала
+            if (bullet.lifetime <= 0 || bullet.position.y < 0) {
                 this.scene.remove(bullet);
                 this.bullets.splice(i, 1);
             }
         }
     }
-
     resize(){
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
