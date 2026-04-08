@@ -1,127 +1,88 @@
 import * as THREE from 'three';
+
 import { LoadingBar } from './src/LoadingBar.js';
 import { City } from './src/City.js';
-import { GLTFLoader } from './src/loaders/GLTFLoader.js';
-import { DRACOLoader } from './src/loaders/DRACOLoader.js';
-import { VRButton } from 'three/examples/jsm/Addons.js';
-
 import { PlayerController } from './src/PlayerController.js';
 import { BulletSystem } from './src/BulletSystem.js';
 import { EnemySystem } from './src/EnemySystem.js';
 
+import { SceneFactory } from './src/factories/SceneFactory.js';
+import { RendererFactory } from './src/factories/RendererFactory.js';
+import { XRFactory } from './src/factories/XRFactory.js';
+import { PlayerRigFactory } from './src/factories/PlayerRigFactory.js';
+import { LoaderFactory } from './src/factories/LoaderFactory.js';
+
 class App {
     constructor() {
-        this.initDom();
-        this.initCore();
-        this.initScene();
-        this.initRenderer();
-        this.initXRControllers();
-        this.initPlayerRig();
-        this.initSystems();
-        this.bindEvents();
-
-        this.loadPlayerModel();
-        window.app = this;
-    }
-
-    initDom() {
-        this.container = document.createElement('div');
-        document.body.appendChild(this.container);
-    }
-
-    initCore() {
         this.clock = new THREE.Clock();
-    }
 
-    initScene() {
-        this.camera = new THREE.PerspectiveCamera(
-            50,
-            window.innerWidth / window.innerHeight,
-            1,
-            500
+        this.sceneFactory = new SceneFactory();
+        this.rendererFactory = new RendererFactory();
+        this.xrFactory = new XRFactory();
+        this.playerRigFactory = new PlayerRigFactory();
+        this.loaderFactory = new LoaderFactory();
+
+        this.container = this.createContainer();
+
+        const { scene, camera } = this.sceneFactory.create();
+        this.scene = scene;
+        this.camera = camera;
+
+        this.renderer = this.rendererFactory.create(this.container);
+
+        const { controller1, controller2 } = this.xrFactory.create(
+            this.renderer,
+            this.scene
         );
+        this.controller1 = controller1;
+        this.controller2 = controller2;
 
-        this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xefd1b5);
-        this.scene.fog = new THREE.FogExp2(0xefd1b5, 0.01);
-
-        const ambient = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 0.5);
-        this.scene.add(ambient);
-
-        const light = new THREE.DirectionalLight(0xffffff, 4);
-        light.position.set(0, 1, 1);
-        this.scene.add(light);
+        const { playerRig, cameraPivot } = this.playerRigFactory.create(
+            this.camera,
+            this.scene
+        );
+        this.playerRig = playerRig;
+        this.cameraPivot = cameraPivot;
 
         this.city = new City(this.scene);
         this.loadingBar = new LoadingBar();
-    }
 
-    initRenderer() {
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        this.renderer.xr.enabled = true;
-        this.renderer.setPixelRatio(window.devicePixelRatio);
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.outputEncoding = THREE.SRGBColorSpace;
-        this.renderer.physicallyCorrectLights = true;
-
-        this.container.appendChild(this.renderer.domElement);
-        document.body.appendChild(VRButton.createButton(this.renderer));
-    }
-
-    initXRControllers() {
-        this.controller1 = this.renderer.xr.getController(0);
-        this.controller2 = this.renderer.xr.getController(1);
-
-        const geometry = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 0, -1)
-        ]);
-
-        const line = new THREE.Line(geometry);
-        line.scale.z = 5;
-
-        this.controller1.add(line);
-
-        this.scene.add(this.controller1);
-        this.scene.add(this.controller2);
-    }
-
-    initPlayerRig() {
-        this.playerRig = new THREE.Group();
-        this.playerRig.position.set(0, 80, 0);
-
-        this.cameraPivot = new THREE.Group();
-        this.cameraPivot.position.set(0, 1.5, 1);
-
-        this.cameraPivot.add(this.camera);
-        this.playerRig.add(this.cameraPivot);
-        this.scene.add(this.playerRig);
-    }
-
-    initSystems() {
         this.playerController = null;
         this.bulletSystem = new BulletSystem(this.scene, this.renderer);
         this.enemySystem = new EnemySystem(this.scene, this.city);
+
+        this.loader = this.loaderFactory.createPlayerLoader();
+
+        this.bindEvents();
+        this.loadPlayerModel();
+
+        window.app = this;
+    }
+
+    createContainer() {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        return container;
     }
 
     bindEvents() {
         this.handleResize = this.resize.bind(this);
+        this.handleBeforeUnload = this.dispose.bind(this);
+
         window.addEventListener('resize', this.handleResize);
-        window.addEventListener('beforeunload', () => this.dispose());
+        window.addEventListener('beforeunload', this.handleBeforeUnload);
     }
 
     loadPlayerModel() {
-        const loader = new GLTFLoader();
-        loader.setPath('./assets/shahed-131_special_edition_white/');
+        this.loader.setPath('./assets/shahed-131_special_edition_white/');
 
-        const dracoLoader = new DRACOLoader();
-        loader.setDRACOLoader(dracoLoader);
-
-        loader.load(
+        this.loader.load(
             'scene.gltf',
             (gltf) => this.setupPlayer(gltf),
             (xhr) => {
-                this.loadingBar.progress = xhr.loaded / xhr.total;
+                if (xhr.total) {
+                    this.loadingBar.progress = xhr.loaded / xhr.total;
+                }
             },
             (err) => {
                 console.error(err);
@@ -130,6 +91,8 @@ class App {
     }
 
     setupPlayer(gltf) {
+        this.originalGLTF = gltf;
+
         this.playerController = new PlayerController({
             playerRig: this.playerRig,
             camera: this.camera,
@@ -159,14 +122,25 @@ class App {
         }
 
         this.playerController.update(deltaTime);
-        this.enemySystem.update(deltaTime, this.playerRig.position.z, elapsedTime);
+
+        this.enemySystem.update(
+            deltaTime,
+            this.playerRig.position.z,
+            elapsedTime
+        );
+
         this.bulletSystem.update(
             deltaTime,
             this.enemySystem.enemies,
             this.playerController,
             elapsedTime
         );
-        this.playerController.updateCollisions(this.city.buildings, this.enemySystem.enemies);
+
+        this.playerController.updateCollisions(
+            this.city.buildings,
+            this.enemySystem.enemies
+        );
+
         this.playerController.updateCamera();
 
         this.renderer.render(this.scene, this.camera);
@@ -174,30 +148,44 @@ class App {
 
     dispose() {
         window.removeEventListener('resize', this.handleResize);
-        this.renderer.setAnimationLoop(null);
+        window.removeEventListener('beforeunload', this.handleBeforeUnload);
+
+        if (this.renderer) {
+            this.renderer.setAnimationLoop(null);
+        }
 
         if (this.playerController) {
             this.playerController.dispose();
         }
 
-        this.bulletSystem.dispose();
-        this.enemySystem.dispose();
+        if (this.bulletSystem) {
+            this.bulletSystem.dispose();
+        }
 
-        this.scene.traverse((object) => {
-            if (object.geometry) {
-                object.geometry.dispose();
-            }
+        if (this.enemySystem) {
+            this.enemySystem.dispose();
+        }
 
-            if (object.material) {
-                if (Array.isArray(object.material)) {
-                    object.material.forEach((material) => material.dispose());
-                } else {
-                    object.material.dispose();
+        if (this.scene) {
+            this.scene.traverse((object) => {
+                if (object.geometry) {
+                    object.geometry.dispose();
                 }
-            }
-        });
 
-        this.renderer.dispose();
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach((material) => material.dispose());
+                    } else {
+                        object.material.dispose();
+                    }
+                }
+            });
+        }
+
+        if (this.renderer) {
+            this.renderer.dispose();
+        }
+
         console.log('App disposed');
     }
 }
