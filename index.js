@@ -1,13 +1,13 @@
 import * as THREE from 'three';
-import { LoadingBar } from './LoadingBar.js';
-import { City } from './City.js';
-import { GLTFLoader } from './loaders/GLTFLoader.js';
-import { DRACOLoader } from './loaders/DRACOLoader.js';
+import { LoadingBar } from './src/LoadingBar.js';
+import { City } from './src/City.js';
+import { GLTFLoader } from './src/loaders/GLTFLoader.js';
+import { DRACOLoader } from './src/loaders/DRACOLoader.js';
 import { VRButton } from 'three/examples/jsm/Addons.js';
 
-import { PlayerController } from './PlayerController.js';
-import { BulletSystem } from './BulletSystem.js';
-import { EnemySystem } from './EnemySystem.js';
+import { PlayerController } from './src/PlayerController.js';
+import { BulletSystem } from './src/BulletSystem.js';
+import { EnemySystem } from './src/EnemySystem.js';
 
 class App {
     constructor() {
