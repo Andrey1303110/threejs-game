@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { BULLET_CONFIG } from './config.js';
 
 export class BulletSystem {
-    constructor(scene, renderer) {
+    constructor(scene, renderer, gameState) {
         this.scene = scene;
         this.renderer = renderer;
+        this.gameState = gameState;
 
         this.bullets = [];
         this.lastShootTime = 0;
@@ -19,7 +20,10 @@ export class BulletSystem {
     }
 
     update(deltaTime, enemies, playerController, elapsedTime) {
-        this.handleXRShot(playerController, elapsedTime);
+        if (!this.gameState.isGameOver) {
+            this.handleXRShot(playerController, elapsedTime);
+        }
+
         this.updateBullets(deltaTime, enemies);
     }
 
@@ -88,11 +92,18 @@ export class BulletSystem {
                 const distance = bullet.position.distanceTo(enemy.position);
 
                 if (distance < BULLET_CONFIG.hitDistance) {
+                    if (enemy.mixer) {
+                        enemy.mixer.stopAllAction();
+                        enemy.mixer.uncacheRoot(enemy);
+                    }
+
                     this.scene.remove(bullet);
                     this.scene.remove(enemy);
 
                     this.bullets.splice(i, 1);
                     enemies.splice(j, 1);
+
+                    this.gameState.addKill();
 
                     bulletRemoved = true;
                     break;
@@ -108,10 +119,19 @@ export class BulletSystem {
         }
     }
 
-    dispose() {
-        this.bullets.forEach((bullet) => this.scene.remove(bullet));
-        this.bullets = [];
+    reset() {
+        this.bullets.forEach((bullet) => {
+            this.scene.remove(bullet);
+        });
 
+        this.bullets = [];
+        this.lastShootTime = 0;
+        this.wasTriggerPressed.left = false;
+        this.wasTriggerPressed.right = false;
+    }
+
+    dispose() {
+        this.reset();
         this.bulletGeometry.dispose();
         this.bulletMaterial.dispose();
     }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { DEFAULT_SPEED, MAX_SPEED, FLIGHT_CONFIG } from './config.js';
-import { applyDeadZone } from './utils/utilityFunctions.js';
+import { applyDeadZone } from './utils/math.js';
 
 export class PlayerController {
     constructor({ playerRig, camera, renderer, gltf }) {
@@ -194,16 +194,17 @@ export class PlayerController {
             this.boundingBox.copy(this.mesh.geometry.boundingBox).applyMatrix4(this.mesh.matrixWorld);
         }
 
-        this.checkBuildingCollisions(buildings);
-        this.checkEnemyCollisions(enemies);
+        return this.checkBuildingCollisions(buildings) || this.checkEnemyCollisions(enemies);
     }
 
     checkBuildingCollisions(buildings) {
-        buildings.forEach((build) => {
+        for (const build of buildings) {
             build.updateMatrixWorld(true);
 
+            let collided = false;
+
             build.traverse((child) => {
-                if (!(child instanceof THREE.Mesh)) return;
+                if (!(child instanceof THREE.Mesh) || collided) return;
 
                 if (!child.geometry.boundingBox) {
                     child.geometry.computeBoundingBox();
@@ -216,18 +217,26 @@ export class PlayerController {
                 child.boundingBox.copy(child.geometry.boundingBox).applyMatrix4(child.matrixWorld);
 
                 if (this.boundingBox.intersectsBox(child.boundingBox)) {
-                    console.log('player to city collision detected');
+                    collided = true;
                 }
             });
-        });
+
+            if (collided) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     checkEnemyCollisions(enemies) {
-        enemies.forEach((enemy) => {
+        for (const enemy of enemies) {
             enemy.updateMatrixWorld(true);
 
+            let collided = false;
+
             enemy.traverse((child) => {
-                if (!(child instanceof THREE.Mesh)) return;
+                if (!(child instanceof THREE.Mesh) || collided) return;
 
                 if (!child.geometry.boundingBox) {
                     child.geometry.computeBoundingBox();
@@ -240,10 +249,16 @@ export class PlayerController {
                 child.boundingBox.copy(child.geometry.boundingBox).applyMatrix4(child.matrixWorld);
 
                 if (this.boundingBox.intersectsBox(child.boundingBox)) {
-                    console.log('player to enemy collision detected');
+                    collided = true;
                 }
             });
-        });
+
+            if (collided) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     getShootTransform() {
@@ -266,6 +281,21 @@ export class PlayerController {
 
     brake() {
         this.currentSpeed = Math.max(this.currentSpeed - 0.5, DEFAULT_SPEED);
+    }
+
+    reset() {
+        this.playerRig.position.set(0, 80, 0);
+        this.playerRig.rotation.set(0, 0, 0);
+
+        this.currentSpeed = DEFAULT_SPEED;
+
+        this.tiltVelocity = 0;
+        this.yawVelocity = 0;
+        this.tiltAngle = 0;
+        this.yawAngle = 0;
+
+        this.yawGroup.rotation.set(0, 0, 0);
+        this.tiltGroup.rotation.set(0, 0, 0);
     }
 
     dispose() {

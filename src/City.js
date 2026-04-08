@@ -1,106 +1,134 @@
 import * as THREE from 'three';
-import { getRandomInRange } from './utils/utilityFunctions';
-
-const CITY_DEPTH = 3000;
+import { getRandomInRange } from './utils/math.js';
+import { CITY_CONFIG } from './config.js';
 
 export class City {
     constructor(scene) {
         this.scene = scene;
         this.buildings = [];
-        this.linesBetweenBuilding = [];
+        this.laneCenters = [];
+        this.textureLoader = new THREE.TextureLoader();
 
         this.createCity();
     }
 
-    addRoad(x) {
-        const textureLoader = new THREE.TextureLoader();
-        const roadTexture = textureLoader.load('./assets/textures/road_texture.jpg');
-        const roadWidth = 28;  // Ширина дороги
-        const roadLength = CITY_DEPTH; // Длина дороги
-
-        const roadGeometry = new THREE.PlaneGeometry(roadWidth, roadLength);
-        const roadMaterial = new THREE.MeshStandardMaterial({ 
-            map: roadTexture, 
-            side: THREE.DoubleSide 
-        });
-
-        const road = new THREE.Mesh(roadGeometry, roadMaterial);
-        x = x + 27;
-        road.position.set(x, 0, roadLength * -0.5);
-        road.rotation.x = -Math.PI / 2; // Разворачиваем, чтобы лежала горизонтально
-
-        this.scene.add(road);
+    createCity() {
+        const textures = this.loadBuildingTextures();
+        this.createLaneCenters();
+        this.createRoads();
+        this.createBuildings(textures);
     }
 
-    createCity() {
-        const textureLoader = new THREE.TextureLoader();
-        const textures = [
-            textureLoader.load('./assets/textures/build_texture_1.jpg'),
-            textureLoader.load('./assets/textures/build_texture_2.jpg'),
-            textureLoader.load('./assets/textures/build_texture_3.jpg'),
-            textureLoader.load('./assets/textures/build_texture_4.jpg')
+    loadBuildingTextures() {
+        return [
+            this.textureLoader.load('./assets/textures/build_texture_1.jpg'),
+            this.textureLoader.load('./assets/textures/build_texture_2.jpg'),
+            this.textureLoader.load('./assets/textures/build_texture_3.jpg'),
+            this.textureLoader.load('./assets/textures/build_texture_4.jpg')
         ];
-        const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 });
+    }
 
-        const startPositionZ = 120;
-        const cityWidth = 378;
-        const numBuildingsX = 8; // Количество зданий по X
-        const numBuildingsZ = 26; // Количество зданий по Z
-        // const buildingSize = 16; // Ширина и глубина каждого здания
-        const buildingSize = 16; // Ширина и глубина каждого здания
-        const buildHeight = 55;
-        const spacingByX = 38; // Равномерный отступ между зданиями
-        const spacingByY = 52; // Равномерный отступ между зданиями
+    createLaneCenters() {
+        const {
+            buildingsX,
+            buildingSize,
+            spacingX,
+            width
+        } = CITY_CONFIG;
 
-        for (let i = 0; i < numBuildingsX; i++) {
-            for (let j = 0; j < numBuildingsZ; j++) {
-                const currentIndex = getRandomInRange(0, textures.length-1);
-                const currentTexture = textures[currentIndex];
+        this.laneCenters = [];
 
-                const materials = [
-                    new THREE.MeshStandardMaterial({ map: currentTexture }), // Левая
-                    new THREE.MeshStandardMaterial({ map: currentTexture }), // Правая
-                    roofMaterial, // Верхняя (крыша)
-                    new THREE.MeshStandardMaterial({ map: currentTexture }), // Нижняя (не видна, можно оставить)
-                    new THREE.MeshStandardMaterial({ map: currentTexture }), // Передняя
-                    new THREE.MeshStandardMaterial({ map: currentTexture })  // Задняя
-                ];
-                const height = Math.random() * 50 + buildHeight; // Разная высота зданий
-                // const width = Math.random() * buildingSize/2 + buildingSize;
-                const width = buildingSize * 1.5; 
-                const geometry = new THREE.BoxGeometry(width, height, width);
+        for (let i = 0; i < buildingsX - 1; i++) {
+            const buildingCenterX =
+                i * (buildingSize + spacingX) - width * 0.5;
+
+            const laneCenterX =
+                buildingCenterX + buildingSize * 0.5 + spacingX * 0.5;
+
+            this.laneCenters.push(laneCenterX);
+        }
+    }
+
+    createRoads() {
+        this.laneCenters.forEach((laneCenterX) => {
+            this.addRoad(laneCenterX);
+        });
+    }
+
+    createBuildings(textures) {
+        const roofMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 0.6
+        });
+
+        const {
+            buildingsX,
+            buildingsZ,
+            buildingSize,
+            spacingX,
+            spacingZ,
+            width,
+            depth,
+            baseHeight
+        } = CITY_CONFIG;
+
+        for (let i = 0; i < buildingsX; i++) {
+            for (let j = 0; j < buildingsZ; j++) {
+                const currentTexture = textures[getRandomInRange(0, textures.length - 1)];
+
+                const height = Math.random() * 50 + baseHeight;
+                const currentWidth = buildingSize * 1.5;
+
                 currentTexture.wrapS = THREE.RepeatWrapping;
                 currentTexture.wrapT = THREE.RepeatWrapping;
-                currentTexture.repeat.set(2, height / 33); // Повторяем текстуру по высоте
+                currentTexture.repeat.set(2, height / 33);
 
-                // const material = new THREE.MeshStandardMaterial({ 
-                //     map: buildingTexture,
-                //     roughness: 0.7 
-                // });
+                const wallMaterial = new THREE.MeshStandardMaterial({
+                    map: currentTexture
+                });
 
+                const materials = [
+                    wallMaterial,
+                    wallMaterial,
+                    roofMaterial,
+                    wallMaterial,
+                    wallMaterial,
+                    wallMaterial
+                ];
+
+                const geometry = new THREE.BoxGeometry(currentWidth, height, currentWidth);
                 const building = new THREE.Mesh(geometry, materials);
-                building.updateMatrixWorld(true);
-                building.boundingBox = new THREE.Box3().setFromObject(building);
 
-                // Расположение здания по сетке
-                const x = i * (buildingSize + spacingByX) - cityWidth * 0.5;
-                const z = (j * (buildingSize + spacingByY) - CITY_DEPTH * 0.5) + startPositionZ;
+                const x = i * (buildingSize + spacingX) - width * 0.5;
+                const z = j * (buildingSize + spacingZ) - depth * 0.5 + 120;
                 const y = height * 0.5;
 
                 building.position.set(x, y, z);
+                building.updateMatrixWorld(true);
+                building.boundingBox = new THREE.Box3().setFromObject(building);
 
                 this.scene.add(building);
                 this.buildings.push(building);
-
-                if (i !== numBuildingsX - 1) {
-                    const linePositionX = x + buildingSize * 0.5 + spacingByX * 0.5;
-
-                    if (!this.linesBetweenBuilding.includes(linePositionX)) {
-                        this.linesBetweenBuilding.push(linePositionX);
-                        this.addRoad(x);
-                    }
-                }                
             }
         }
+    }
+
+    addRoad(centerX) {
+        const roadTexture = this.textureLoader.load('./assets/textures/road_texture.jpg');
+
+        const roadWidth = 28;
+        const roadLength = CITY_CONFIG.depth;
+
+        const roadGeometry = new THREE.PlaneGeometry(roadWidth, roadLength);
+        const roadMaterial = new THREE.MeshStandardMaterial({
+            map: roadTexture,
+            side: THREE.DoubleSide
+        });
+
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.position.set(centerX, 0, roadLength * -0.5);
+        road.rotation.x = -Math.PI / 2;
+
+        this.scene.add(road);
     }
 }

@@ -12,6 +12,9 @@ import { XRFactory } from './src/factories/XRFactory.js';
 import { PlayerRigFactory } from './src/factories/PlayerRigFactory.js';
 import { LoaderFactory } from './src/factories/LoaderFactory.js';
 
+import { GameState } from './src/game/GameState.js';
+import { VRHud } from './src/ui/VRHud.js';
+
 class App {
     constructor() {
         this.clock = new THREE.Clock();
@@ -47,11 +50,19 @@ class App {
         this.city = new City(this.scene);
         this.loadingBar = new LoadingBar();
 
+        this.gameState = new GameState();
+        this.vrHud = new VRHud(this.camera);
+        this.unsubscribeGameState = this.gameState.subscribe((state) => {
+            this.vrHud.render(state);
+        });
+
         this.playerController = null;
-        this.bulletSystem = new BulletSystem(this.scene, this.renderer);
         this.enemySystem = new EnemySystem(this.scene, this.city);
+        this.bulletSystem = new BulletSystem(this.scene, this.renderer, this.gameState);
 
         this.loader = this.loaderFactory.createPlayerLoader();
+
+        this.wasRestartTriggerPressed = false;
 
         this.bindEvents();
         this.loadPlayerModel();
@@ -121,34 +132,88 @@ class App {
             return;
         }
 
-        this.playerController.update(deltaTime);
+        if (!this.gameState.isGameOver) {
+            this.playerController.update(deltaTime);
 
-        this.enemySystem.update(
-            deltaTime,
-            this.playerRig.position.z,
-            elapsedTime
-        );
+            this.enemySystem.update(
+                deltaTime,
+                this.playerRig.position.z,
+                elapsedTime
+            );
 
-        this.bulletSystem.update(
-            deltaTime,
-            this.enemySystem.enemies,
-            this.playerController,
-            elapsedTime
-        );
+            this.bulletSystem.update(
+                deltaTime,
+                this.enemySystem.enemies,
+                this.playerController,
+                elapsedTime
+            );
 
-        this.playerController.updateCollisions(
-            this.city.buildings,
-            this.enemySystem.enemies
-        );
+            const hasCollision = this.playerController.updateCollisions(
+                this.city.buildings,
+                this.enemySystem.enemies
+            );
+
+            if (hasCollision) {
+                this.gameState.setGameOver(true);
+            }
+        } else {
+            this.handleRestartInput();
+        }
 
         this.playerController.updateCamera();
-
         this.renderer.render(this.scene, this.camera);
+    }
+
+    handleRestartInput() {
+        if (!this.renderer.xr.isPresenting) return;
+
+        const session = this.renderer.xr.getSession();
+        if (!session) return;
+
+        let triggerPressed = false;
+
+        for (const source of session.inputSources) {
+            if (!source.gamepad) continue;
+
+            if (source.gamepad.buttons[0]?.pressed) {
+                triggerPressed = true;
+                break;
+            }
+        }
+
+        if (triggerPressed && !this.wasRestartTriggerPressed) {
+            this.restart();
+        }
+
+        this.wasRestartTriggerPressed = triggerPressed;
+    }
+
+    restart() {
+        if (!this.playerController) return;
+
+        this.clock.stop();
+        this.clock.elapsedTime = 0;
+        this.clock.start();
+
+        this.enemySystem.reset();
+        this.bulletSystem.reset();
+        this.playerController.reset();
+        this.gameState.reset();
+
+        this.wasRestartTriggerPressed = false;
     }
 
     dispose() {
         window.removeEventListener('resize', this.handleResize);
         window.removeEventListener('beforeunload', this.handleBeforeUnload);
+
+        if (this.unsubscribeGameState) {
+            this.unsubscribeGameState();
+        }
+
+        if (this.vrHud) {
+            this.vrHud.dispose();
+        }
 
         if (this.renderer) {
             this.renderer.setAnimationLoop(null);

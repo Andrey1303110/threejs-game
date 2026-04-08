@@ -4,41 +4,108 @@ export const DEFAULT_SPEED = 10;
 export const MAX_SPEED = 50;
 
 export const FLIGHT_CONFIG = {
-    maxTilt: Math.PI / 3,
-    maxYaw: Math.PI / 6,
-    maxPitch: 0.15,
-
-    tiltAcceleration: 3,
-    tiltDamping: 10,
-
-    yawAcceleration: 3,
-    yawDamping: 20,
-
+    // чувствительность стиков
     horizontalDeadZone: 0.15,
     verticalDeadZone: 0.1,
 
+    // скорости движения
+    lateralMoveSpeed: 10,
     verticalMoveSpeed: 10,
-    lateralMoveSpeed: 10
+
+    // наклоны
+    maxTilt: Math.PI / 3,   // крен (влево/вправо)
+    maxYaw: Math.PI / 6,    // поворот корпуса
+    maxPitch: 0.15,         // вверх/вниз
+
+    // инерция крена
+    tiltAcceleration: 3,
+    tiltDamping: 10,
+
+    // инерция поворота
+    yawAcceleration: 3,
+    yawDamping: 20
 };
 
 export const BULLET_CONFIG = {
-    reloadTime: 0.4,
     radius: 0.25,
-    initialSpeed: MAX_SPEED * 3,
-    gravity: new THREE.Vector3(0, -14, 0),
-    drag: 0.25,
-    lifetime: 5,
-    muzzleOffset: 3,
+
+    initialSpeed: 120,
+    drag: 0.4,
+
+    gravity: new THREE.Vector3(0, -9.8, 0),
+
+    lifetime: 3,
+    reloadTime: 0.25,
+
+    muzzleOffset: 2.5,
     hitDistance: 3
 };
 
+export const CITY_CONFIG = {
+    depth: 3000,
+    width: 378,
+
+    buildingsX: 8,
+    buildingsZ: 26,
+
+    buildingSize: 16,
+    baseHeight: 55,
+
+    spacingX: 38,
+    spacingZ: 52,
+
+    textureRepeatX: 2,
+
+    districts: [
+        {
+            name: 'downtown',
+            zStart: 0.0,
+            zEnd: 0.3,
+            minHeight: 80,
+            maxHeight: 150,
+            minWidthMultiplier: 1.2,
+            maxWidthMultiplier: 1.9,
+            emptyLotChance: 0.04
+        },
+        {
+            name: 'midtown',
+            zStart: 0.3,
+            zEnd: 0.7,
+            minHeight: 55,
+            maxHeight: 110,
+            minWidthMultiplier: 1.1,
+            maxWidthMultiplier: 1.7,
+            emptyLotChance: 0.1
+        },
+        {
+            name: 'suburb',
+            zStart: 0.7,
+            zEnd: 1.0,
+            minHeight: 25,
+            maxHeight: 65,
+            minWidthMultiplier: 1.0,
+            maxWidthMultiplier: 1.4,
+            emptyLotChance: 0.2
+        }
+    ]
+};
+
 export const ENEMY_CONFIG = {
-    addEnemyDelay: 4,
-    enemiesCount: 40,
-    startPositionOffset: 180,
-    offsetBetweenEnemies: 120,
+    minSpawnDelay: 1.0,
+    maxSpawnDelay: 2.6,
+
+    enemiesCount: 60,
+    startPositionOffset: 240,
+
+    minDistanceBetweenWaves: 100,
+    maxDistanceBetweenWaves: 180,
+
     cameraOffset: 30,
     minHeight: 60,
-    maxHeight: 90,
-    moveSpeed: DEFAULT_SPEED
+    maxHeight: 100,
+    moveSpeed: DEFAULT_SPEED,
+
+    waveTypes: ['single', 'pair', 'triple', 'vertical'],
+    verticalOffset: 8,
+    longitudinalOffset: 12
 };
