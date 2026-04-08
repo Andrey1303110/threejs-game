@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getRandomInRange } from './index.js';
+import { getRandomInRange } from './utils/utilityFunctions';
 
 const CITY_DEPTH = 3000;
 
