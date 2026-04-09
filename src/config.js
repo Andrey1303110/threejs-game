@@ -10,20 +10,23 @@ export const FLIGHT_CONFIG = {
 
     // скорости движения
     lateralMoveSpeed: 10,
-    verticalMoveSpeed: 10,
+    verticalMoveSpeed: {
+        up: 7,
+        down: 11
+    },
 
     // наклоны
-    maxTilt: Math.PI / 3,   // крен (влево/вправо)
+    maxTilt: Math.PI / 4,   // крен (влево/вправо)
     maxYaw: Math.PI / 6,    // поворот корпуса
     maxPitch: 0.15,         // вверх/вниз
 
     // инерция крена
     tiltAcceleration: 3,
-    tiltDamping: 10,
+    tiltDamping: 25,
 
     // инерция поворота
-    yawAcceleration: 3,
-    yawDamping: 20
+    yawAcceleration: 1.15,
+    yawDamping: 25
 };
 
 export const BULLET_CONFIG = {

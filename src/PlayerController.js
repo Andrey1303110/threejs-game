@@ -126,6 +126,8 @@ export class PlayerController {
     }
 
     updateManualMovement(input, deltaTime) {
+        const { up, down } = FLIGHT_CONFIG.verticalMoveSpeed;
+
         this._right.set(1, 0, 0);
         this._right.applyQuaternion(this.playerRig.quaternion);
 
@@ -134,7 +136,15 @@ export class PlayerController {
             input.horizontal * FLIGHT_CONFIG.lateralMoveSpeed * deltaTime
         );
 
-        this.playerRig.position.y += -input.vertical * FLIGHT_CONFIG.verticalMoveSpeed * deltaTime;
+        let position = 0;
+
+        if (input.vertical > 0) {
+            position = -input.vertical * down * deltaTime;
+        } else if (input.vertical < 0) {
+            position = -input.vertical * up * deltaTime;
+        }
+
+        this.playerRig.position.y += position;
     }
 
     updateRotation(input, deltaTime) {
