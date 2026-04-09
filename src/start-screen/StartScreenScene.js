@@ -19,7 +19,7 @@ export class StartScreenScene {
             0.1,
             100
         );
-        this.camera.position.set(0, BASE_HEIGHT + 0.15, BASE_DISTANCE + 0);
+        this.camera.position.set(0, 0.15, 0);
 
         this.clock = new THREE.Clock();
 
@@ -32,6 +32,7 @@ export class StartScreenScene {
         };
 
         this.createLights();
+        this.createXRControllers();
         this.createLayout();
         this.createDronePreview();
     }
@@ -41,28 +42,54 @@ export class StartScreenScene {
         this.scene.add(ambient);
 
         const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
-        keyLight.position.set(2.5, BASE_HEIGHT + 2.2, BASE_DISTANCE + 3.2);
+        keyLight.position.set(2.5, 2.2, 3.2);
         this.scene.add(keyLight);
 
         const fillLight = new THREE.DirectionalLight(0x7d9bff, 1.0);
-        fillLight.position.set(-2.2, BASE_HEIGHT + 1.2, BASE_DISTANCE + -1.5);
+        fillLight.position.set(-2.2, 1.2, 1.5);
         this.scene.add(fillLight);
 
         const rimLight = new THREE.DirectionalLight(0x88aaff, 0.8);
-        rimLight.position.set(-1.5, BASE_HEIGHT + 0.8, BASE_DISTANCE + 2.0);
+        rimLight.position.set(-1.5, 0.8, 2.0);
         this.scene.add(rimLight);
+    }
+
+    createXRControllers() {
+        this.controller1 = this.renderer.xr.getController(0);
+        this.controller2 = this.renderer.xr.getController(1);
+
+        const geometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, -1)
+        ]);
+
+        const material = new THREE.LineBasicMaterial({ color: 0xffffff });
+
+        const line1 = new THREE.Line(geometry, material.clone());
+        line1.name = 'ray';
+        line1.scale.z = 3;
+        this.controller1.add(line1);
+
+        const line2 = new THREE.Line(geometry, material.clone());
+        line2.name = 'ray';
+        line2.scale.z = 3;
+        this.controller2.add(line2);
+
+        this.scene.add(this.controller1);
+        this.scene.add(this.controller2);
     }
 
     createLayout() {
         this.root = new THREE.Group();
+        this.root.position.set(0, BASE_HEIGHT, BASE_DISTANCE);
         this.scene.add(this.root);
 
         const rightPanel = this.createPanel({
             width: 2,
             height: 1.75,
             x: 1.55,
-            y: BASE_HEIGHT + 0,
-            z: BASE_DISTANCE + 0,
+            y: 0,
+            z: 0,
             color: 'rgba(12, 14, 20, 0.8)',
             borderColor: 'rgba(255,255,255,0.05)'
         });
@@ -79,7 +106,7 @@ export class StartScreenScene {
             color: '#ffffff',
             subColor: 'rgba(255,255,255,0.65)'
         });
-        this.titleMesh.position.set(1.55, BASE_HEIGHT + 1.2, BASE_DISTANCE + 0.15);
+        this.titleMesh.position.set(1.55, 1.2, 0.15);
         this.root.add(this.titleMesh);
 
         this.subtitleMesh = this.createTextPlane({
@@ -90,7 +117,7 @@ export class StartScreenScene {
             bg: 'rgba(0,0,0,0)',
             color: 'rgba(255,255,255,0.82)'
         });
-        this.subtitleMesh.position.set(1.55, BASE_HEIGHT + 0.55, BASE_DISTANCE + 0.1);
+        this.subtitleMesh.position.set(1.55, 0.55, 0.1);
         this.root.add(this.subtitleMesh);
 
         this.startButton = this.createButtonPlane({
@@ -101,13 +128,13 @@ export class StartScreenScene {
             color: '#11141a',
             border: 'rgba(255,255,255,0.18)'
         });
-        this.startButton.position.set(1.55, BASE_HEIGHT + -0.15, BASE_DISTANCE + 0.08);
+        this.startButton.position.set(1.55, 0.15, 0.08);
         this.root.add(this.startButton);
     }
 
     createDronePreview() {
         this.previewRoot = new THREE.Group();
-        this.previewRoot.position.set(-2.2, BASE_HEIGHT + -0.1, BASE_DISTANCE + 0.35);
+        this.previewRoot.position.set(-2.2, 0.1, 0.35);
         this.root.add(this.previewRoot);
 
         const floorGeometry = new THREE.CircleGeometry(0.95, 64);
@@ -120,7 +147,7 @@ export class StartScreenScene {
 
         this.previewFloor = new THREE.Mesh(floorGeometry, floorMaterial);
         this.previewFloor.rotation.x = -Math.PI / 2;
-        this.previewFloor.position.set(0, BASE_HEIGHT + -2.4, BASE_DISTANCE + 5);
+        this.previewFloor.position.set(0, -1.6, 0.4);
         this.previewRoot.add(this.previewFloor);
 
         this.previewModelRoot = new THREE.Group();
@@ -129,7 +156,7 @@ export class StartScreenScene {
         this.previewModel = this.gltf.scene.clone(true);
         this.previewModel.scale.set(1, 1, 1);
         this.previewModel.rotation.y = Math.PI * 1.75;
-        this.previewModel.position.set(0, BASE_HEIGHT + -1.2, BASE_DISTANCE + 5);
+        this.previewModel.position.set(0, -0.4, 0.4);
         this.previewModelRoot.add(this.previewModel);
 
         this.previewMixer = new THREE.AnimationMixer(this.previewModel);
@@ -169,13 +196,15 @@ export class StartScreenScene {
         for (const source of session.inputSources) {
             if (!source.gamepad) continue;
 
-            const controllerIndex = source.handedness === 'left' ? 1 : 0;
+            const controllerIndex = source.handedness === 'left' ? 0 : 1;
             const controller = this.renderer.xr.getController(controllerIndex);
             if (!controller) continue;
 
+            controller.updateMatrixWorld(true);
+
             this.tempMatrix.identity().extractRotation(controller.matrixWorld);
             this.raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-            this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(this.tempMatrix);
+            this.raycaster.ray.direction.set(0, 0, -1).applyMatrix4(this.tempMatrix).normalize();
 
             const intersections = this.raycaster.intersectObject(this.startButton, false);
 
