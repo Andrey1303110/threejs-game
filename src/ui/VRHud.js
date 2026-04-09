@@ -26,7 +26,7 @@ export class VRHud {
             new THREE.PlaneGeometry(0.9, 0.45),
             this.hudMaterial
         );
-        this.hudMesh.position.set(0, 0.22, 0);
+        this.hudMesh.position.set(0, 0, 0);
         this.root.add(this.hudMesh);
 
         this.gameOverCanvas = document.createElement('canvas');

@@ -14,6 +14,7 @@ import { LoaderFactory } from './src/factories/LoaderFactory.js';
 
 import { GameState } from './src/game/GameState.js';
 import { VRHud } from './src/ui/VRHud.js';
+import { StartScreenScene } from './src/start-screen/StartScreenScene.js';
 
 class App {
     constructor() {
@@ -26,12 +27,31 @@ class App {
         this.loaderFactory = new LoaderFactory();
 
         this.container = this.createContainer();
+        this.renderer = this.rendererFactory.create(this.container);
 
+        this.startScreen = null;
+
+        this.initGameWorld();
+        this.initGameSystems();
+        this.bindEvents();
+        this.loadPlayerModel();
+
+        this.mode = 'loading';
+        this.wasRestartTriggerPressed = false;
+
+        window.app = this;
+    }
+
+    createContainer() {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+        return container;
+    }
+
+    initGameWorld() {
         const { scene, camera } = this.sceneFactory.create();
         this.scene = scene;
         this.camera = camera;
-
-        this.renderer = this.rendererFactory.create(this.container);
 
         const { controller1, controller2 } = this.xrFactory.create(
             this.renderer,
@@ -49,31 +69,21 @@ class App {
 
         this.city = new City(this.scene);
         this.loadingBar = new LoadingBar();
+    }
 
+    initGameSystems() {
         this.gameState = new GameState();
         this.vrHud = new VRHud(this.camera);
         this.unsubscribeGameState = this.gameState.subscribe((state) => {
             this.vrHud.render(state);
         });
+        this.vrHud.root.visible = false;
 
         this.playerController = null;
         this.enemySystem = new EnemySystem(this.scene, this.city);
         this.bulletSystem = new BulletSystem(this.scene, this.renderer, this.gameState);
 
         this.loader = this.loaderFactory.createPlayerLoader();
-
-        this.wasRestartTriggerPressed = false;
-
-        this.bindEvents();
-        this.loadPlayerModel();
-
-        window.app = this;
-    }
-
-    createContainer() {
-        const container = document.createElement('div');
-        document.body.appendChild(container);
-        return container;
     }
 
     bindEvents() {
@@ -113,13 +123,34 @@ class App {
 
         this.enemySystem.setSource(gltf, this.playerController.animations);
 
+        this.startScreen = new StartScreenScene({
+            renderer: this.renderer,
+            gltf,
+            onStart: () => this.startGame()
+        });
+
         this.loadingBar.visible = false;
+        this.mode = 'start';
+
         this.renderer.setAnimationLoop(this.render.bind(this));
     }
 
+    startGame() {
+        this.mode = 'game';
+        this.vrHud.root.visible = true;
+        this.restart();
+    }
+
     resize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
+        if (this.camera) {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+        }
+
+        if (this.startScreen) {
+            this.startScreen.resize();
+        }
+
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
@@ -129,6 +160,12 @@ class App {
 
         if (!this.playerController) {
             this.renderer.render(this.scene, this.camera);
+            return;
+        }
+
+        if (this.mode === 'start') {
+            this.startScreen.update(deltaTime);
+            this.startScreen.render(this.renderer);
             return;
         }
 
@@ -209,6 +246,10 @@ class App {
 
         if (this.unsubscribeGameState) {
             this.unsubscribeGameState();
+        }
+
+        if (this.startScreen) {
+            this.startScreen.dispose();
         }
 
         if (this.vrHud) {
