@@ -265,16 +265,14 @@ export class StartScreenScene {
         this.drawRoundedRect(ctx, 28, 28, 968, 968, 52, borderColor, true);
 
         const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true
-        });
+        const material = this.createCanvasMaterial(texture);
 
         const mesh = new THREE.Mesh(
             new THREE.PlaneGeometry(width, height),
             material
         );
         mesh.position.set(x, y, z);
+        mesh.renderOrder = 10;
 
         return mesh;
     }
@@ -305,15 +303,15 @@ export class StartScreenScene {
         }
 
         const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true
-        });
+        const material = this.createCanvasMaterial(texture);
 
-        return new THREE.Mesh(
+        const mesh = new THREE.Mesh(
             new THREE.PlaneGeometry(width, height),
             material
         );
+        mesh.renderOrder =20;
+
+        return mesh;
     }
 
     createButtonPlane({ width, height, text, bg, color, border }) {
@@ -325,10 +323,7 @@ export class StartScreenScene {
         this.drawButton({ ctx, canvas, text, bg, color, border });
 
         const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true
-        });
+        const material = this.createCanvasMaterial(texture);
 
         const mesh = new THREE.Mesh(
             new THREE.PlaneGeometry(width, height),
@@ -339,6 +334,7 @@ export class StartScreenScene {
         mesh.userData.ctx = ctx;
         mesh.userData.texture = texture;
         mesh.userData.isHovered = false;
+        mesh.renderOrder = 30;
 
         return mesh;
     }
@@ -385,6 +381,24 @@ export class StartScreenScene {
         }
 
         ctx.restore();
+    }
+
+    createCanvasMaterial(texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.needsUpdate = true;
+
+        return new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
     }
 
     dispose() {
