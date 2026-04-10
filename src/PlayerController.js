@@ -3,10 +3,11 @@ import { DEFAULT_SPEED, MAX_SPEED, FLIGHT_CONFIG } from './config.js';
 import { applyDeadZone } from './utils/math.js';
 
 export class PlayerController {
-    constructor({ playerRig, camera, renderer, gltf }) {
+    constructor({ playerRig, camera, renderer, gltf, audioManager }) {
         this.playerRig = playerRig;
         this.camera = camera;
         this.renderer = renderer;
+        this.audioManager = audioManager;
 
         this.currentSpeed = DEFAULT_SPEED;
 
@@ -19,6 +20,8 @@ export class PlayerController {
         this._right = new THREE.Vector3();
         this._dronePosition = new THREE.Vector3();
         this._quaternion = new THREE.Quaternion();
+
+        this.engineAudio = null;
 
         this.createPlayer(gltf);
     }
@@ -57,6 +60,14 @@ export class PlayerController {
         });
 
         this.playAnimation('fuselage');
+
+        if (this.audioManager) {
+            this.engineAudio = this.audioManager.createPlayerEngineAudio(this.player);
+            if (this.engineAudio) {
+                this.audioManager.startPlayerEngine();
+                this.audioManager.updatePlayerEngine(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);
+            }
+        }
     }
 
     playAnimation(name) {
@@ -81,10 +92,23 @@ export class PlayerController {
         this.updateRotation(input, deltaTime);
         this.updateForwardMovement(deltaTime);
 
-        if (input.accelerate) this.accelerate();
-        if (input.brake) this.brake();
+        if (input.accelerate) {
+            this.accelerate(deltaTime);
+        }
 
-        this.currentSpeed = THREE.MathUtils.clamp(this.currentSpeed, 5, MAX_SPEED);
+        if (input.brake) {
+            this.brake(deltaTime);
+        }
+
+        if (!input.accelerate && !input.brake) {
+            this.idleBrake(deltaTime);
+        }
+
+        this.currentSpeed = THREE.MathUtils.clamp(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);
+
+        if (this.audioManager) {
+            this.audioManager.updatePlayerEngine(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);
+        }
 
         if (this.mixer) {
             this.mixer.update(deltaTime);
@@ -285,12 +309,52 @@ export class PlayerController {
         return { spawnPosition, direction };
     }
 
-    accelerate() {
-        this.currentSpeed = Math.min(this.currentSpeed + 0.15, MAX_SPEED);
+    accelerate(deltaTime) {
+        const minAccel = 0.1;   // минимальное ускорение у верхней границы
+        const maxAccel = 2.25;   // ускорение на низкой скорости
+
+        const speedRatio = THREE.MathUtils.clamp(
+            (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
+            0,
+            1
+        );
+
+        // параболическое затухание ускорения
+        const accelFactor = 1 - speedRatio * speedRatio;
+        const acceleration = minAccel + (maxAccel - minAccel) * accelFactor;
+        this.currentSpeed += acceleration * deltaTime;
     }
 
-    brake() {
-        this.currentSpeed = Math.max(this.currentSpeed - 0.5, DEFAULT_SPEED);
+    brake(deltaTime) {
+        const minBrake = 3;   // у нижней границы
+        const maxBrake = 6;   // на высокой скорости
+
+        const speedRatio = THREE.MathUtils.clamp(
+            (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
+            0,
+            1
+        );
+
+        // чем выше скорость, тем сильнее торможение
+        const deceleration = minBrake + (maxBrake - minBrake) * (speedRatio * speedRatio);
+
+        this.currentSpeed -= deceleration * deltaTime;
+    }
+
+    idleBrake(deltaTime) {
+        const minBrake = 0.35;   // почти нет торможения у дефолтной
+        const maxBrake = 3;   // заметное торможение на высокой скорости
+
+        const speedRatio = THREE.MathUtils.clamp(
+            (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
+            0,
+            1
+        );
+
+        // возле DEFAULT_SPEED торможение почти исчезает
+        const deceleration = minBrake + (maxBrake - minBrake) * (speedRatio * speedRatio);
+
+        this.currentSpeed -= deceleration * deltaTime;
     }
 
     reset() {
@@ -306,9 +370,17 @@ export class PlayerController {
 
         this.yawGroup.rotation.set(0, 0, 0);
         this.tiltGroup.rotation.set(0, 0, 0);
+
+        if (this.audioManager) {
+            this.audioManager.updatePlayerEngine(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);
+        }
     }
 
     dispose() {
+        if (this.engineAudio && this.engineAudio.isPlaying) {
+            this.engineAudio.stop();
+        }
+
         if (this.mixer) {
             this.mixer.stopAllAction();
             this.mixer.uncacheRoot(this.model);

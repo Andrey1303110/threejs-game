@@ -2,10 +2,11 @@ import * as THREE from 'three';
 import { BULLET_CONFIG } from './config.js';
 
 export class BulletSystem {
-    constructor(scene, renderer, gameState) {
+    constructor(scene, renderer, gameState, audioManager) {
         this.scene = scene;
         this.renderer = renderer;
         this.gameState = gameState;
+        this.audioManager = audioManager;
 
         this.bullets = [];
         this.lastShootTime = 0;
@@ -69,6 +70,10 @@ export class BulletSystem {
         this.scene.add(bullet);
         this.bullets.push(bullet);
         this.lastShootTime = elapsedTime;
+
+        if (this.audioManager) {
+            this.audioManager.playShot(playerController.player, 1);
+        }
     }
 
     updateBullets(deltaTime, enemies) {
@@ -92,6 +97,13 @@ export class BulletSystem {
                 const distance = bullet.position.distanceTo(enemy.position);
 
                 if (distance < BULLET_CONFIG.hitDistance) {
+                    if (enemy.userData.engineAudio) {
+                        if (enemy.userData.engineAudio.isPlaying) {
+                            enemy.userData.engineAudio.stop();
+                        }
+                        enemy.userData.engineAudio.disconnect();
+                    }
+
                     if (enemy.mixer) {
                         enemy.mixer.stopAllAction();
                         enemy.mixer.uncacheRoot(enemy);

@@ -15,6 +15,7 @@ import { LoaderFactory } from './src/factories/LoaderFactory.js';
 import { GameState } from './src/game/GameState.js';
 import { VRHud } from './src/ui/VRHud.js';
 import { StartScreenScene } from './src/start-screen/StartScreenScene.js';
+import { AudioManager } from './src/audio/AudioManager.js';
 
 class App {
     constructor() {
@@ -37,7 +38,7 @@ class App {
         this.initGameWorld();
         this.initGameSystems();
         this.bindEvents();
-        this.loadPlayerModel();
+        this.loadAssets();
 
         window.app = this;
     }
@@ -77,13 +78,11 @@ class App {
         this.vrHud = new VRHud(this.camera);
         this.vrHud.root.visible = false;
 
+        this.audioManager = new AudioManager(this.camera);
+
         this.playerController = null;
-        this.enemySystem = new EnemySystem(this.scene, this.city);
-        this.bulletSystem = new BulletSystem(
-            this.scene,
-            this.renderer,
-            this.gameState
-        );
+        this.enemySystem = null;
+        this.bulletSystem = null;
 
         this.loader = this.loaderFactory.createPlayerLoader();
     }
@@ -91,9 +90,27 @@ class App {
     bindEvents() {
         this.handleResize = this.resize.bind(this);
         this.handleBeforeUnload = this.dispose.bind(this);
+        this.handlePointerUnlockAudio = this.unlockAudio.bind(this);
 
         window.addEventListener('resize', this.handleResize);
         window.addEventListener('beforeunload', this.handleBeforeUnload);
+
+        window.addEventListener('pointerdown', this.handlePointerUnlockAudio, { once: true });
+        window.addEventListener('keydown', this.handlePointerUnlockAudio, { once: true });
+    }
+
+    async loadAssets() {
+        try {
+            await this.audioManager.loadAll();
+            this.loadPlayerModel();
+        } catch (error) {
+            console.error('Audio loading failed:', error);
+            this.loadPlayerModel();
+        }
+    }
+
+    unlockAudio() {
+        this.audioManager.unlock();
     }
 
     loadPlayerModel() {
@@ -120,12 +137,27 @@ class App {
             playerRig: this.playerRig,
             camera: this.camera,
             renderer: this.renderer,
-            gltf
+            gltf,
+            audioManager: this.audioManager
         });
+
+        this.enemySystem = new EnemySystem(
+            this.scene,
+            this.city,
+            this.audioManager,
+            this.playerRig
+        );
 
         this.enemySystem.setSource(
             gltf,
             this.playerController.animations
+        );
+
+        this.bulletSystem = new BulletSystem(
+            this.scene,
+            this.renderer,
+            this.gameState,
+            this.audioManager
         );
 
         this.startScreen = new StartScreenScene({
@@ -141,6 +173,7 @@ class App {
     }
 
     startGame() {
+        this.audioManager.unlock();
         this.mode = 'game';
         this.vrHud.root.visible = true;
         this.restart();
@@ -148,8 +181,7 @@ class App {
 
     resize() {
         if (this.camera) {
-            this.camera.aspect =
-                window.innerWidth / window.innerHeight;
+            this.camera.aspect = window.innerWidth / window.innerHeight;
             this.camera.updateProjectionMatrix();
         }
 
@@ -157,10 +189,7 @@ class App {
             this.startScreen.resize();
         }
 
-        this.renderer.setSize(
-            window.innerWidth,
-            window.innerHeight
-        );
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     render() {
@@ -172,14 +201,12 @@ class App {
             return;
         }
 
-        // 👉 СТАРТОВАЯ СЦЕНА
         if (this.mode === 'start') {
             this.startScreen.update(deltaTime);
             this.startScreen.render(this.renderer);
             return;
         }
 
-        // 👉 ИГРА
         if (!this.gameState.isGameOver) {
             this.playerController.update(deltaTime);
 
@@ -196,11 +223,10 @@ class App {
                 elapsedTime
             );
 
-            const hasCollision =
-                this.playerController.updateCollisions(
-                    this.city.buildings,
-                    this.enemySystem.enemies
-                );
+            const hasCollision = this.playerController.updateCollisions(
+                this.city.buildings,
+                this.enemySystem.enemies
+            );
 
             if (hasCollision) {
                 this.gameState.setGameOver(true);
@@ -209,17 +235,14 @@ class App {
             this.handleRestartInput();
         }
 
+        this.playerController.updateCamera();
+
         this.vrHud.render({
             ...this.gameState.getSnapshot(),
-            speed: this.playerController
-                ? this.playerController.currentSpeed
-                : 0,
-            altitude: this.playerRig
-                ? this.playerRig.position.y
-                : 0
+            speed: this.playerController ? this.playerController.currentSpeed : 0,
+            altitude: this.playerRig ? this.playerRig.position.y : 0
         });
 
-        this.playerController.updateCamera();
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -264,10 +287,7 @@ class App {
 
     dispose() {
         window.removeEventListener('resize', this.handleResize);
-        window.removeEventListener(
-            'beforeunload',
-            this.handleBeforeUnload
-        );
+        window.removeEventListener('beforeunload', this.handleBeforeUnload);
 
         if (this.startScreen) {
             this.startScreen.dispose();
@@ -293,6 +313,10 @@ class App {
             this.enemySystem.dispose();
         }
 
+        if (this.audioManager) {
+            this.audioManager.dispose();
+        }
+
         if (this.scene) {
             this.scene.traverse((object) => {
                 if (object.geometry) {
@@ -301,9 +325,7 @@ class App {
 
                 if (object.material) {
                     if (Array.isArray(object.material)) {
-                        object.material.forEach((material) =>
-                            material.dispose()
-                        );
+                        object.material.forEach((material) => material.dispose());
                     } else {
                         object.material.dispose();
                     }
