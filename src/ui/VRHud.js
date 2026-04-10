@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+const SCREEN_WIDTH = 1024
+const SCREEN_HEIGHT = 512
+
 export class VRHud {
     constructor(camera) {
         this.camera = camera;
@@ -8,8 +11,8 @@ export class VRHud {
         this.root.position.set(0, -0.15, -1.2);
 
         this.hudCanvas = document.createElement('canvas');
-        this.hudCanvas.width = 1024;
-        this.hudCanvas.height = 512;
+        this.hudCanvas.width = SCREEN_WIDTH;
+        this.hudCanvas.height = SCREEN_HEIGHT;
         this.hudCtx = this.hudCanvas.getContext('2d');
 
         this.hudTexture = new THREE.CanvasTexture(this.hudCanvas);
@@ -36,8 +39,8 @@ export class VRHud {
         this.root.add(this.hudMesh);
 
         this.gameOverCanvas = document.createElement('canvas');
-        this.gameOverCanvas.width = 1024;
-        this.gameOverCanvas.height = 512;
+        this.gameOverCanvas.width = SCREEN_WIDTH;
+        this.gameOverCanvas.height = SCREEN_HEIGHT;
         this.gameOverCtx = this.gameOverCanvas.getContext('2d');
 
         this.gameOverTexture = new THREE.CanvasTexture(this.gameOverCanvas);
@@ -95,11 +98,11 @@ export class VRHud {
 
         ctx.fillStyle = 'rgba(255,255,255,0.72)';
         ctx.font = '28px Arial';
-        ctx.fillText('KILLS', 512, 58);
+        ctx.fillText('KILLS', this.gameOverCanvas.width * 0.5, 58);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 54px Arial';
-        ctx.fillText(String(state.kills ?? 0), 512, 98);
+        ctx.fillText(String(state.kills ?? 0), this.gameOverCanvas.width * 0.5, 98);
 
         // SPEED — снизу слева
         this.drawRoundedRect(ctx, 24, 360, 280, 120, 26, 'rgba(12, 18, 28, 0.78)');
@@ -111,13 +114,10 @@ export class VRHud {
         ctx.font = '24px Arial';
         ctx.fillText('SPEED', 56, 400);
 
+        const drawSpeed = state.speed * 10 ?? 0;
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 42px Arial';
-        ctx.fillText(`${Math.round(state.speed ?? 0)}`, 56, 442);
-
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.font = '22px Arial';
-        ctx.fillText('km/h', 180, 442);
+        ctx.fillText(`${Math.round(drawSpeed)} km/h`, 56, 442);
 
         // ALTITUDE — снизу справа
         this.drawRoundedRect(ctx, 720, 360, 280, 120, 26, 'rgba(12, 18, 28, 0.78)');
@@ -129,11 +129,7 @@ export class VRHud {
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 42px Arial';
-        ctx.fillText(`${Math.round(state.altitude ?? 0)}`, 752, 442);
-
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.font = '22px Arial';
-        ctx.fillText('m', 905, 442);
+        ctx.fillText(`${Math.round(state.altitude ?? 0)} m`, 752, 442);
 
         this.hudTexture.needsUpdate = true;
     }
