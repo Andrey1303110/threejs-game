@@ -1,7 +1,24 @@
 import * as THREE from 'three';
 
-const SCREEN_WIDTH = 1024
-const SCREEN_HEIGHT = 512
+const LAYER_WIDTH = 1280;
+const LAYER_HEIGHT = 900;
+
+const HUD_PLANE_WIDTH = 1.4;
+const HUD_PLANE_HEIGHT = 0.7;
+
+const GAME_OVER_WIDTH = 1.1;
+const GAME_OVER_HEIGHT = 0.55;
+
+const COLORS = {
+    panelBg: 'rgba(12, 18, 28, 0.78)',
+    panelInner: 'rgba(255, 255, 255, 0.06)',
+    gameOverBg: 'rgba(10, 12, 18, 0.92)',
+    gameOverInner: 'rgba(255, 255, 255, 0.05)',
+    label: 'rgba(255,255,255,0.72)',
+    value: '#ffffff',
+    hint: 'rgba(255,255,255,0.55)',
+    subtitle: 'rgba(255,255,255,0.86)'
+};
 
 export class VRHud {
     constructor(camera) {
@@ -11,16 +28,12 @@ export class VRHud {
         this.root.position.set(0, -0.15, -1.2);
 
         this.hudCanvas = document.createElement('canvas');
-        this.hudCanvas.width = SCREEN_WIDTH;
-        this.hudCanvas.height = SCREEN_HEIGHT;
+        this.hudCanvas.width = LAYER_WIDTH;
+        this.hudCanvas.height = LAYER_HEIGHT;
         this.hudCtx = this.hudCanvas.getContext('2d');
 
         this.hudTexture = new THREE.CanvasTexture(this.hudCanvas);
-        this.hudTexture.colorSpace = THREE.SRGBColorSpace;
-        this.hudTexture.generateMipmaps = false;
-        this.hudTexture.minFilter = THREE.LinearFilter;
-        this.hudTexture.magFilter = THREE.LinearFilter;
-        this.hudTexture.needsUpdate = true;
+        this.setupTexture(this.hudTexture);
 
         this.hudMaterial = new THREE.MeshBasicMaterial({
             map: this.hudTexture,
@@ -31,7 +44,7 @@ export class VRHud {
         });
 
         this.hudMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(1.4, 0.7),
+            new THREE.PlaneGeometry(HUD_PLANE_WIDTH, HUD_PLANE_HEIGHT),
             this.hudMaterial
         );
         this.hudMesh.position.set(0, 0, 0);
@@ -39,16 +52,12 @@ export class VRHud {
         this.root.add(this.hudMesh);
 
         this.gameOverCanvas = document.createElement('canvas');
-        this.gameOverCanvas.width = SCREEN_WIDTH;
-        this.gameOverCanvas.height = SCREEN_HEIGHT;
+        this.gameOverCanvas.width = LAYER_WIDTH;
+        this.gameOverCanvas.height = LAYER_HEIGHT;
         this.gameOverCtx = this.gameOverCanvas.getContext('2d');
 
         this.gameOverTexture = new THREE.CanvasTexture(this.gameOverCanvas);
-        this.gameOverTexture.colorSpace = THREE.SRGBColorSpace;
-        this.gameOverTexture.generateMipmaps = false;
-        this.gameOverTexture.minFilter = THREE.LinearFilter;
-        this.gameOverTexture.magFilter = THREE.LinearFilter;
-        this.gameOverTexture.needsUpdate = true;
+        this.setupTexture(this.gameOverTexture);
 
         this.gameOverMaterial = new THREE.MeshBasicMaterial({
             map: this.gameOverTexture,
@@ -59,7 +68,7 @@ export class VRHud {
         });
 
         this.gameOverMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(1.1, 0.55),
+            new THREE.PlaneGeometry(GAME_OVER_WIDTH, GAME_OVER_HEIGHT),
             this.gameOverMaterial
         );
         this.gameOverMesh.position.set(0, -0.18, 0.01);
@@ -77,6 +86,16 @@ export class VRHud {
         });
     }
 
+    setupTexture(texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.needsUpdate = true;
+    }
+
     render(state) {
         this.renderHud(state);
         this.renderGameOver(state);
@@ -87,49 +106,31 @@ export class VRHud {
         const canvas = this.hudCanvas;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
 
-        // KILLS — по центру сверху
-        this.drawRoundedRect(ctx, 332, 20, 360, 120, 26, 'rgba(12, 18, 28, 0.78)');
-        this.drawRoundedRect(ctx, 340, 28, 344, 104, 20, 'rgba(255, 255, 255, 0.06)');
+        const killsRect = this.getRect('top-center', 360, 120, 0);
+        const speedRect = this.getRect('bottom-left', 280, 120, 0);
+        const altitudeRect = this.getRect('bottom-right', 280, 120, 0);
 
-        ctx.textAlign = 'center';
+        this.drawPanel(ctx, killsRect, 26);
+        this.drawPanel(ctx, speedRect, 26);
+        this.drawPanel(ctx, altitudeRect, 26);
 
-        ctx.fillStyle = 'rgba(255,255,255,0.72)';
-        ctx.font = '28px Arial';
-        ctx.fillText('KILLS', this.gameOverCanvas.width * 0.5, 58);
+        this.drawCenterMetric(ctx, killsRect, {
+            label: 'KILLS',
+            value: String(state.kills ?? 0)
+        });
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 54px Arial';
-        ctx.fillText(String(state.kills ?? 0), this.gameOverCanvas.width * 0.5, 98);
+        this.drawLeftMetric(ctx, speedRect, {
+            label: 'SPEED',
+            value: `${Math.round((state.speed ?? 0) * 10)}`,
+            suffix: 'km/h'
+        });
 
-        // SPEED — снизу слева
-        this.drawRoundedRect(ctx, 24, 360, 280, 120, 26, 'rgba(12, 18, 28, 0.78)');
-        this.drawRoundedRect(ctx, 32, 368, 264, 104, 20, 'rgba(255, 255, 255, 0.06)');
-
-        ctx.textAlign = 'left';
-
-        ctx.fillStyle = 'rgba(255,255,255,0.72)';
-        ctx.font = '24px Arial';
-        ctx.fillText('SPEED', 56, 400);
-
-        const drawSpeed = state.speed * 10 ?? 0;
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 42px Arial';
-        ctx.fillText(`${Math.round(drawSpeed)} km/h`, 56, 442);
-
-        // ALTITUDE — снизу справа
-        this.drawRoundedRect(ctx, 720, 360, 280, 120, 26, 'rgba(12, 18, 28, 0.78)');
-        this.drawRoundedRect(ctx, 728, 368, 264, 104, 20, 'rgba(255, 255, 255, 0.06)');
-
-        ctx.fillStyle = 'rgba(255,255,255,0.72)';
-        ctx.font = '24px Arial';
-        ctx.fillText('ALTITUDE', 752, 400);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 42px Arial';
-        ctx.fillText(`${Math.round(state.altitude ?? 0)} m`, 752, 442);
+        this.drawLeftMetric(ctx, altitudeRect, {
+            label: 'ALTITUDE',
+            value: `${Math.round(state.altitude ?? 0)}`,
+            suffix: 'm'
+        });
 
         this.hudTexture.needsUpdate = true;
     }
@@ -148,24 +149,145 @@ export class VRHud {
 
         this.gameOverMesh.visible = true;
 
-        this.drawRoundedRect(ctx, 90, 70, 844, 360, 34, 'rgba(10, 12, 18, 0.92)');
-        this.drawRoundedRect(ctx, 106, 86, 812, 328, 28, 'rgba(255, 255, 255, 0.05)');
+        const panelRect = {
+            x: 90,
+            y: 70,
+            width: 844,
+            height: 360
+        };
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 72px Arial';
+        this.drawRoundedRect(
+            ctx,
+            panelRect.x,
+            panelRect.y,
+            panelRect.width,
+            panelRect.height,
+            34,
+            COLORS.gameOverBg
+        );
+
+        this.drawRoundedRect(
+            ctx,
+            panelRect.x + 16,
+            panelRect.y + 16,
+            panelRect.width - 32,
+            panelRect.height - 32,
+            28,
+            COLORS.gameOverInner
+        );
+
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('GAME OVER', canvas.width / 2, 170);
 
-        ctx.fillStyle = 'rgba(255,255,255,0.86)';
+        ctx.fillStyle = COLORS.value;
+        ctx.font = 'bold 72px Arial';
+        ctx.fillText('GAME OVER', canvas.width * 0.5, 170);
+
+        ctx.fillStyle = COLORS.subtitle;
         ctx.font = '36px Arial';
-        ctx.fillText(`Enemies destroyed: ${state.kills ?? 0}`, canvas.width / 2, 250);
+        ctx.fillText(`Enemies destroyed: ${state.kills ?? 0}`, canvas.width * 0.5, 250);
 
-        ctx.fillStyle = 'rgba(255,255,255,0.72)';
+        ctx.fillStyle = COLORS.label;
         ctx.font = '30px Arial';
-        ctx.fillText('Press trigger to restart', canvas.width / 2, 330);
+        ctx.fillText('Press trigger to restart', canvas.width * 0.5, 330);
 
         this.gameOverTexture.needsUpdate = true;
+    }
+
+    getRect(anchor, width, height, margin = 0) {
+        switch (anchor) {
+            case 'top-center':
+                return {
+                    x: (LAYER_WIDTH - width) * 0.5,
+                    y: margin,
+                    width,
+                    height
+                };
+
+            case 'bottom-left':
+                return {
+                    x: margin,
+                    y: LAYER_HEIGHT - height - margin,
+                    width,
+                    height
+                };
+
+            case 'bottom-right':
+                return {
+                    x: LAYER_WIDTH - width - margin,
+                    y: LAYER_HEIGHT - height - margin,
+                    width,
+                    height
+                };
+
+            case 'center':
+                return {
+                    x: (LAYER_WIDTH - width) * 0.5,
+                    y: (LAYER_HEIGHT - height) * 0.5,
+                    width,
+                    height
+                };
+
+            default:
+                return { x: 0, y: 0, width, height };
+        }
+    }
+
+    drawPanel(ctx, rect, radius = 24) {
+        this.drawRoundedRect(
+            ctx,
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+            radius,
+            COLORS.panelBg
+        );
+
+        this.drawRoundedRect(
+            ctx,
+            rect.x + 8,
+            rect.y + 8,
+            rect.width - 16,
+            rect.height - 16,
+            Math.max(12, radius - 6),
+            COLORS.panelInner
+        );
+    }
+
+    drawCenterMetric(ctx, rect, { label, value }) {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.fillStyle = COLORS.label;
+        ctx.font = '28px Arial';
+        ctx.fillText(label, rect.x + rect.width * 0.5, rect.y + 38);
+
+        ctx.fillStyle = COLORS.value;
+        ctx.font = 'bold 54px Arial';
+        ctx.fillText(value, rect.x + rect.width * 0.5, rect.y + 78);
+    }
+
+    drawLeftMetric(ctx, rect, { label, value, suffix }) {
+        const left = rect.x + 32;
+        const valueY = rect.y + 82;
+
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+
+        ctx.fillStyle = COLORS.label;
+        ctx.font = '24px Arial';
+        ctx.fillText(label, left, rect.y + 40);
+
+        ctx.fillStyle = COLORS.value;
+        ctx.font = 'bold 42px Arial';
+        ctx.fillText(value, left, valueY);
+
+        const valueWidth = ctx.measureText(value).width;
+
+        ctx.fillStyle = COLORS.hint;
+        ctx.font = '22px Arial';
+        ctx.fillText(suffix, left + valueWidth + 14, valueY);
     }
 
     drawRoundedRect(ctx, x, y, width, height, radius, fillStyle) {
