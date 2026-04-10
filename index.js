@@ -29,15 +29,15 @@ class App {
         this.container = this.createContainer();
         this.renderer = this.rendererFactory.create(this.container);
 
+        this.mode = 'loading';
+        this.wasRestartTriggerPressed = false;
+
         this.startScreen = null;
 
         this.initGameWorld();
         this.initGameSystems();
         this.bindEvents();
         this.loadPlayerModel();
-
-        this.mode = 'loading';
-        this.wasRestartTriggerPressed = false;
 
         window.app = this;
     }
@@ -73,15 +73,17 @@ class App {
 
     initGameSystems() {
         this.gameState = new GameState();
+
         this.vrHud = new VRHud(this.camera);
-        this.unsubscribeGameState = this.gameState.subscribe((state) => {
-            this.vrHud.render(state);
-        });
         this.vrHud.root.visible = false;
 
         this.playerController = null;
         this.enemySystem = new EnemySystem(this.scene, this.city);
-        this.bulletSystem = new BulletSystem(this.scene, this.renderer, this.gameState);
+        this.bulletSystem = new BulletSystem(
+            this.scene,
+            this.renderer,
+            this.gameState
+        );
 
         this.loader = this.loaderFactory.createPlayerLoader();
     }
@@ -121,7 +123,10 @@ class App {
             gltf
         });
 
-        this.enemySystem.setSource(gltf, this.playerController.animations);
+        this.enemySystem.setSource(
+            gltf,
+            this.playerController.animations
+        );
 
         this.startScreen = new StartScreenScene({
             renderer: this.renderer,
@@ -143,7 +148,8 @@ class App {
 
     resize() {
         if (this.camera) {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.aspect =
+                window.innerWidth / window.innerHeight;
             this.camera.updateProjectionMatrix();
         }
 
@@ -151,7 +157,10 @@ class App {
             this.startScreen.resize();
         }
 
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+        );
     }
 
     render() {
@@ -163,12 +172,14 @@ class App {
             return;
         }
 
+        // 👉 СТАРТОВАЯ СЦЕНА
         if (this.mode === 'start') {
             this.startScreen.update(deltaTime);
             this.startScreen.render(this.renderer);
             return;
         }
 
+        // 👉 ИГРА
         if (!this.gameState.isGameOver) {
             this.playerController.update(deltaTime);
 
@@ -185,10 +196,11 @@ class App {
                 elapsedTime
             );
 
-            const hasCollision = this.playerController.updateCollisions(
-                this.city.buildings,
-                this.enemySystem.enemies
-            );
+            const hasCollision =
+                this.playerController.updateCollisions(
+                    this.city.buildings,
+                    this.enemySystem.enemies
+                );
 
             if (hasCollision) {
                 this.gameState.setGameOver(true);
@@ -196,6 +208,16 @@ class App {
         } else {
             this.handleRestartInput();
         }
+
+        this.vrHud.render({
+            ...this.gameState.getSnapshot(),
+            speed: this.playerController
+                ? this.playerController.currentSpeed
+                : 0,
+            altitude: this.playerRig
+                ? this.playerRig.position.y
+                : 0
+        });
 
         this.playerController.updateCamera();
         this.renderer.render(this.scene, this.camera);
@@ -242,11 +264,10 @@ class App {
 
     dispose() {
         window.removeEventListener('resize', this.handleResize);
-        window.removeEventListener('beforeunload', this.handleBeforeUnload);
-
-        if (this.unsubscribeGameState) {
-            this.unsubscribeGameState();
-        }
+        window.removeEventListener(
+            'beforeunload',
+            this.handleBeforeUnload
+        );
 
         if (this.startScreen) {
             this.startScreen.dispose();
@@ -280,7 +301,9 @@ class App {
 
                 if (object.material) {
                     if (Array.isArray(object.material)) {
-                        object.material.forEach((material) => material.dispose());
+                        object.material.forEach((material) =>
+                            material.dispose()
+                        );
                     } else {
                         object.material.dispose();
                     }

@@ -13,20 +13,26 @@ export class VRHud {
         this.hudCtx = this.hudCanvas.getContext('2d');
 
         this.hudTexture = new THREE.CanvasTexture(this.hudCanvas);
+        this.hudTexture.colorSpace = THREE.SRGBColorSpace;
+        this.hudTexture.generateMipmaps = false;
+        this.hudTexture.minFilter = THREE.LinearFilter;
+        this.hudTexture.magFilter = THREE.LinearFilter;
         this.hudTexture.needsUpdate = true;
 
         this.hudMaterial = new THREE.MeshBasicMaterial({
             map: this.hudTexture,
             transparent: true,
             depthTest: false,
-            depthWrite: false
+            depthWrite: false,
+            side: THREE.DoubleSide
         });
 
         this.hudMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.9, 0.45),
+            new THREE.PlaneGeometry(1.4, 0.7),
             this.hudMaterial
         );
         this.hudMesh.position.set(0, 0, 0);
+        this.hudMesh.renderOrder = 100;
         this.root.add(this.hudMesh);
 
         this.gameOverCanvas = document.createElement('canvas');
@@ -35,28 +41,36 @@ export class VRHud {
         this.gameOverCtx = this.gameOverCanvas.getContext('2d');
 
         this.gameOverTexture = new THREE.CanvasTexture(this.gameOverCanvas);
+        this.gameOverTexture.colorSpace = THREE.SRGBColorSpace;
+        this.gameOverTexture.generateMipmaps = false;
+        this.gameOverTexture.minFilter = THREE.LinearFilter;
+        this.gameOverTexture.magFilter = THREE.LinearFilter;
         this.gameOverTexture.needsUpdate = true;
 
         this.gameOverMaterial = new THREE.MeshBasicMaterial({
             map: this.gameOverTexture,
             transparent: true,
             depthTest: false,
-            depthWrite: false
+            depthWrite: false,
+            side: THREE.DoubleSide
         });
 
         this.gameOverMesh = new THREE.Mesh(
             new THREE.PlaneGeometry(1.1, 0.55),
             this.gameOverMaterial
         );
-        this.gameOverMesh.position.set(0, -0.18, 0);
+        this.gameOverMesh.position.set(0, -0.18, 0.01);
         this.gameOverMesh.visible = false;
+        this.gameOverMesh.renderOrder = 110;
         this.root.add(this.gameOverMesh);
 
         this.camera.add(this.root);
 
         this.render({
             kills: 0,
-            isGameOver: false
+            isGameOver: false,
+            speed: 0,
+            altitude: 0
         });
     }
 
@@ -70,18 +84,56 @@ export class VRHud {
         const canvas = this.hudCanvas;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
 
-        this.drawRoundedRect(ctx, 24, 24, 360, 120, 26, 'rgba(12, 18, 28, 0.78)');
-        this.drawRoundedRect(ctx, 32, 32, 344, 104, 20, 'rgba(255, 255, 255, 0.06)');
+        // KILLS — по центру сверху
+        this.drawRoundedRect(ctx, 332, 20, 360, 120, 26, 'rgba(12, 18, 28, 0.78)');
+        this.drawRoundedRect(ctx, 340, 28, 344, 104, 20, 'rgba(255, 255, 255, 0.06)');
+
+        ctx.textAlign = 'center';
 
         ctx.fillStyle = 'rgba(255,255,255,0.72)';
         ctx.font = '28px Arial';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('KILLS', 64, 84);
+        ctx.fillText('KILLS', 512, 58);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 54px Arial';
-        ctx.fillText(String(state.kills), 250, 84);
+        ctx.fillText(String(state.kills ?? 0), 512, 98);
+
+        // SPEED — снизу слева
+        this.drawRoundedRect(ctx, 24, 360, 280, 120, 26, 'rgba(12, 18, 28, 0.78)');
+        this.drawRoundedRect(ctx, 32, 368, 264, 104, 20, 'rgba(255, 255, 255, 0.06)');
+
+        ctx.textAlign = 'left';
+
+        ctx.fillStyle = 'rgba(255,255,255,0.72)';
+        ctx.font = '24px Arial';
+        ctx.fillText('SPEED', 56, 400);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 42px Arial';
+        ctx.fillText(`${Math.round(state.speed ?? 0)}`, 56, 442);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = '22px Arial';
+        ctx.fillText('km/h', 180, 442);
+
+        // ALTITUDE — снизу справа
+        this.drawRoundedRect(ctx, 720, 360, 280, 120, 26, 'rgba(12, 18, 28, 0.78)');
+        this.drawRoundedRect(ctx, 728, 368, 264, 104, 20, 'rgba(255, 255, 255, 0.06)');
+
+        ctx.fillStyle = 'rgba(255,255,255,0.72)';
+        ctx.font = '24px Arial';
+        ctx.fillText('ALTITUDE', 752, 400);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 42px Arial';
+        ctx.fillText(`${Math.round(state.altitude ?? 0)}`, 752, 442);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = '22px Arial';
+        ctx.fillText('m', 905, 442);
 
         this.hudTexture.needsUpdate = true;
     }
@@ -111,7 +163,7 @@ export class VRHud {
 
         ctx.fillStyle = 'rgba(255,255,255,0.86)';
         ctx.font = '36px Arial';
-        ctx.fillText(`Enemies destroyed: ${state.kills}`, canvas.width / 2, 250);
+        ctx.fillText(`Enemies destroyed: ${state.kills ?? 0}`, canvas.width / 2, 250);
 
         ctx.fillStyle = 'rgba(255,255,255,0.72)';
         ctx.font = '30px Arial';
