@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DEFAULT_SPEED, MAX_SPEED, FLIGHT_CONFIG } from './config.js';
 import { applyDeadZone } from './utils/math.js';
+import { CONTROLLER_NAME } from './constants.js';
 
 export class PlayerController {
     constructor({ playerRig, camera, renderer, gltf, audioManager }) {
@@ -137,11 +138,11 @@ export class PlayerController {
             horizontal = applyDeadZone(axes[2] ?? 0, FLIGHT_CONFIG.horizontalDeadZone);
             vertical = applyDeadZone(axes[3] ?? 0, FLIGHT_CONFIG.verticalDeadZone);
 
-            if (source.handedness === 'right') {
+            if (source.handedness === CONTROLLER_NAME.RIGHT) {
                 accelerate = (source.gamepad.buttons[1]?.value ?? 0) > 0;
             }
 
-            if (source.handedness === 'left') {
+            if (source.handedness === CONTROLLER_NAME.LEFT) {
                 brake = (source.gamepad.buttons[1]?.value ?? 0) > 0;
             }
         }

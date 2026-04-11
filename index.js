@@ -16,6 +16,7 @@ import { GameState } from './src/game/GameState.js';
 import { VRHud } from './src/ui/VRHud.js';
 import { StartScreenScene } from './src/start-screen/StartScreenScene.js';
 import { AudioManager } from './src/audio/AudioManager.js';
+import { BUTTONS_LEFT, CONTROLLER_NAME } from './src/constants.js';
 
 class App {
     constructor() {
@@ -32,6 +33,7 @@ class App {
 
         this.mode = 'loading';
         this.wasRestartTriggerPressed = false;
+        this.wasMenuButtonPressed = false;
 
         this.startScreen = null;
 
@@ -174,6 +176,8 @@ class App {
 
     startGame() {
         this.audioManager.unlock();
+        this.audioManager.startPlayerEngine?.();
+
         this.mode = 'game';
         this.vrHud.root.visible = true;
         this.restart();
@@ -206,6 +210,8 @@ class App {
             this.startScreen.render(this.renderer);
             return;
         }
+
+        this.handleMainMenuInput();
 
         if (!this.gameState.isGameOver) {
             this.playerController.update(deltaTime);
@@ -270,6 +276,61 @@ class App {
         this.wasRestartTriggerPressed = triggerPressed;
     }
 
+    handleMainMenuInput() {
+        if (!this.renderer.xr.isPresenting) {
+            this.wasMenuButtonPressed = false;
+            return;
+        }
+
+        const session = this.renderer.xr.getSession();
+        if (!session) {
+            this.wasMenuButtonPressed = false;
+            return;
+        }
+
+        let menuPressed = false;
+
+        for (const source of session.inputSources) {
+            if (!source.gamepad) continue;
+            if (source.handedness !== CONTROLLER_NAME.LEFT) continue;
+
+            if (this.isLeftMenuPressed(source)) {
+                menuPressed = true;
+                break;
+            }
+        }
+
+        if (menuPressed && !this.wasMenuButtonPressed) {
+            this.returnToMainMenu();
+        }
+
+        this.wasMenuButtonPressed = menuPressed;
+    }
+
+    isLeftMenuPressed(source) {
+        const buttons = source.gamepad.buttons;
+        if (!buttons || !buttons.length) return false;
+
+        return buttons[BUTTONS_LEFT.Y]?.pressed;
+    }
+
+    returnToMainMenu() {
+        if (!this.playerController) return;
+
+        this.enemySystem.reset();
+        this.bulletSystem.reset();
+        this.playerController.reset();
+        this.gameState.reset();
+
+        this.audioManager.stopPlayerEngine?.();
+
+        this.vrHud.root.visible = false;
+        this.mode = 'start';
+
+        this.wasMenuButtonPressed = false;
+        this.wasRestartTriggerPressed = false;
+    }
+
     restart() {
         if (!this.playerController) return;
 
@@ -282,7 +343,10 @@ class App {
         this.playerController.reset();
         this.gameState.reset();
 
+        this.audioManager.startPlayerEngine?.();
+
         this.wasRestartTriggerPressed = false;
+        this.wasMenuButtonPressed = false;
     }
 
     dispose() {

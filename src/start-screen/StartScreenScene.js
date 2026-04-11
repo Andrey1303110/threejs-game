@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CONTROLLER_NAME } from '../constants';
 
 const BASE_DISTANCE = -4;
 const BASE_HEIGHT = 0.8;
@@ -196,7 +197,7 @@ export class StartScreenScene {
         for (const source of session.inputSources) {
             if (!source.gamepad) continue;
 
-            const controllerIndex = source.handedness === 'left' ? 0 : 1;
+            const controllerIndex = source.handedness === CONTROLLER_NAME.LEFT ? 0 : 1;
             const controller = this.renderer.xr.getController(controllerIndex);
             if (!controller) continue;
 
