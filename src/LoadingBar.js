@@ -1,5 +1,5 @@
 class LoadingBar{
-	constructor(options){
+	constructor(){
 		this.domElement = document.createElement("div");
 		this.domElement.style.position = 'fixed';
 		this.domElement.style.top = '0';
@@ -29,11 +29,6 @@ class LoadingBar{
 		this.progressBar = bar;
 		
 		document.body.appendChild(this.domElement);
-		
-		function onprogress(delta){
-			const progress = delta*100;
-			loader.progressBar.style.width = `${progress}%`;
-		}
 	}
 	
 	set progress(delta){
@@ -58,7 +53,7 @@ class LoadingBar{
 			ptotal += asset.total;
 		});
 
-		return ploaded == ptotal;
+		return ploaded === ptotal;
 	}
 
 	update(assetName, loaded, total){
