@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-const LAYER_WIDTH = 1280;
-const LAYER_HEIGHT = 900;
+const LAYER_WIDTH = 1536;
+const LAYER_HEIGHT = 768;
 
 const HUD_PLANE_WIDTH = 1.4;
 const HUD_PLANE_HEIGHT = 0.7;
@@ -149,12 +149,7 @@ export class VRHud {
 
         this.gameOverMesh.visible = true;
 
-        const panelRect = {
-            x: 90,
-            y: 70,
-            width: 844,
-            height: 360
-        };
+        const panelRect = this.getRect('center', 844, 360);
 
         this.drawRoundedRect(
             ctx,
@@ -179,17 +174,20 @@ export class VRHud {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
+        const centerX = panelRect.x + panelRect.width * 0.5;
+        const centerY = panelRect.y + panelRect.height * 0.5;
+
         ctx.fillStyle = COLORS.value;
         ctx.font = 'bold 72px Arial';
-        ctx.fillText('GAME OVER', canvas.width * 0.5, 170);
+        ctx.fillText('GAME OVER', centerX, centerY - 70);
 
         ctx.fillStyle = COLORS.subtitle;
         ctx.font = '36px Arial';
-        ctx.fillText(`Enemies destroyed: ${state.kills ?? 0}`, canvas.width * 0.5, 250);
+        ctx.fillText(`Enemies destroyed: ${state.kills ?? 0}`, centerX, centerY + 10);
 
         ctx.fillStyle = COLORS.label;
         ctx.font = '30px Arial';
-        ctx.fillText('Press trigger to restart', canvas.width * 0.5, 330);
+        ctx.fillText('Press trigger to restart', centerX, centerY + 90);
 
         this.gameOverTexture.needsUpdate = true;
     }
