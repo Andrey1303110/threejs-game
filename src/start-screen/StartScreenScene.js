@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CONTROLLER_NAME } from '../constants';
+import { BUTTONS_LEFT, BUTTONS_RIGHT, CONTROLLER_NAME } from '../constants';
 
 const BASE_DISTANCE = -4;
 const BASE_HEIGHT = 0.8;
@@ -209,7 +209,7 @@ export class StartScreenScene {
 
             const intersections = this.raycaster.intersectObject(this.startButton, false);
 
-            const triggerPressed = !!source.gamepad.buttons[0]?.pressed;
+            const triggerPressed = source.gamepad.buttons[BUTTONS_RIGHT.TRIGGER]?.pressed || source.gamepad.buttons[BUTTONS_LEFT.TRIGGER]?.pressed;
             const wasPressed = this.triggerPressedLastFrame[source.handedness] ?? false;
 
             if (intersections.length > 0) {

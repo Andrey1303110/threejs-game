@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BULLET_CONFIG } from './config.js';
-import { CONTROLLER_NAME } from './constants.js';
+import { BUTTONS_RIGHT, CONTROLLER_NAME } from './constants.js';
 
 export class BulletSystem {
     constructor(scene, renderer, gameState, audioManager) {
@@ -39,9 +39,9 @@ export class BulletSystem {
             if (!source.gamepad) continue;
 
             const handedness = source.handedness || 'unknown';
-            if (handedness !== CONTROLLER_NAME.LEFT && handedness !== CONTROLLER_NAME.RIGHT) continue;
+            if (handedness !== CONTROLLER_NAME.RIGHT) continue;
 
-            const triggerPressed = !!source.gamepad.buttons[0]?.pressed;
+            const triggerPressed = !!source.gamepad.buttons[BUTTONS_RIGHT.TRIGGER]?.pressed;
             const wasPressed = this.wasTriggerPressed[handedness];
 
             if (triggerPressed && !wasPressed) {

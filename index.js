@@ -16,7 +16,7 @@ import { GameState } from './src/game/GameState.js';
 import { VRHud } from './src/ui/VRHud.js';
 import { StartScreenScene } from './src/start-screen/StartScreenScene.js';
 import { AudioManager } from './src/audio/AudioManager.js';
-import { BUTTONS_LEFT, CONTROLLER_NAME } from './src/constants.js';
+import { BUTTONS_LEFT, BUTTONS_RIGHT, CONTROLLER_NAME } from './src/constants.js';
 
 class App {
     constructor() {
@@ -263,7 +263,7 @@ class App {
         for (const source of session.inputSources) {
             if (!source.gamepad) continue;
 
-            if (source.gamepad.buttons[0]?.pressed) {
+            if (source.gamepad.buttons[BUTTONS_LEFT.TRIGGER]?.pressed || source.gamepad.buttons[BUTTONS_RIGHT.TRIGGER]?.pressed) {
                 triggerPressed = true;
                 break;
             }
