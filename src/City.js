@@ -76,12 +76,12 @@ export class City {
             for (let j = 0; j < buildingsZ; j++) {
                 const currentTexture = textures[getRandomInRange(0, textures.length - 1)];
 
-                const height = Math.random() * 50 + baseHeight;
-                const currentWidth = buildingSize * 1.5;
+                const visualHeight = getRandomInRange(baseHeight, baseHeight * 3);
+                const visualWidth = getRandomInRange(buildingSize * 1, buildingSize * 1.5);
 
                 currentTexture.wrapS = THREE.RepeatWrapping;
                 currentTexture.wrapT = THREE.RepeatWrapping;
-                currentTexture.repeat.set(2, height / 33);
+                currentTexture.repeat.set(2, visualHeight / 33);
 
                 const wallMaterial = new THREE.MeshStandardMaterial({
                     map: currentTexture
@@ -96,19 +96,30 @@ export class City {
                     wallMaterial
                 ];
 
-                const geometry = new THREE.BoxGeometry(currentWidth, height, currentWidth);
+                const geometry = new THREE.BoxGeometry(visualWidth, visualHeight, visualWidth);
                 const building = new THREE.Mesh(geometry, materials);
 
                 const x = i * (buildingSize + spacingX) - width * 0.5;
                 const z = j * (buildingSize + spacingZ) - depth * 0.5 + 120;
-                const y = height * 0.5;
+                const y = visualHeight * 0.5;
 
                 building.position.set(x, y, z);
                 building.updateMatrixWorld(true);
-                building.boundingBox = new THREE.Box3().setFromObject(building);
 
+                // Визуальный объект
                 this.scene.add(building);
+
+
+                building.collisionBox = new THREE.Box3().setFromCenterAndSize(
+                    new THREE.Vector3(x, y, z),
+                    new THREE.Vector3(visualWidth, visualHeight, visualWidth)
+                );
+
                 this.buildings.push(building);
+
+                // Для дебага можно временно включить:
+                // const helper = new THREE.Box3Helper(building.collisionBox, 0x00ff00);
+                // this.scene.add(helper);
             }
         }
     }

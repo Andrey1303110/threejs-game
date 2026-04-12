@@ -41,7 +41,7 @@ export const BULLET_CONFIG = {
     reloadTime: 0.25,
 
     muzzleOffset: 2.5,
-    hitDistance: 3
+    hitDistance: 2
 };
 
 export const CITY_CONFIG = {
@@ -52,7 +52,7 @@ export const CITY_CONFIG = {
     buildingsZ: 26,
 
     buildingSize: 16,
-    baseHeight: 55,
+    baseHeight: 40,
 
     spacingX: 38,
     spacingZ: 52,

@@ -17,16 +17,19 @@ export class BulletSystem {
             right: false
         };
 
+        this._expandedBox = new THREE.Box3();
+        this._bulletSphere = new THREE.Sphere();
+
         this.bulletGeometry = new THREE.SphereGeometry(BULLET_CONFIG.radius, 8, 8);
         this.bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     }
 
-    update(deltaTime, enemies, playerController, elapsedTime) {
+    update(deltaTime, enemies, buildings, playerController, elapsedTime) {
         if (!this.gameState.isGameOver) {
             this.handleXRShot(playerController, elapsedTime);
         }
 
-        this.updateBullets(deltaTime, enemies);
+        this.updateBullets(deltaTime, enemies, buildings);
     }
 
     handleXRShot(playerController, elapsedTime) {
@@ -77,7 +80,7 @@ export class BulletSystem {
         }
     }
 
-    updateBullets(deltaTime, enemies) {
+    updateBullets(deltaTime, enemies, buildings) {
         if (!this.bullets.length) return;
 
         for (let i = this.bullets.length - 1; i >= 0; i--) {
@@ -93,27 +96,16 @@ export class BulletSystem {
 
             let bulletRemoved = false;
 
+            // =========================
+            // Попадание во врагов
+            // =========================
             for (let j = enemies.length - 1; j >= 0; j--) {
                 const enemy = enemies[j];
                 const distance = bullet.position.distanceTo(enemy.position);
 
                 if (distance < BULLET_CONFIG.hitDistance) {
-                    if (enemy.userData.engineAudio) {
-                        if (enemy.userData.engineAudio.isPlaying) {
-                            enemy.userData.engineAudio.stop();
-                        }
-                        enemy.userData.engineAudio.disconnect();
-                    }
-
-                    if (enemy.mixer) {
-                        enemy.mixer.stopAllAction();
-                        enemy.mixer.uncacheRoot(enemy);
-                    }
-
-                    this.scene.remove(bullet);
-                    this.scene.remove(enemy);
-
-                    this.bullets.splice(i, 1);
+                    this.removeEnemy(enemy);
+                    this.removeBulletByIndex(i);
                     enemies.splice(j, 1);
 
                     this.gameState.addKill();
@@ -125,20 +117,71 @@ export class BulletSystem {
 
             if (bulletRemoved) continue;
 
+            // =========================
+            // Попадание в здания
+            // =========================
+            for (let j = 0; j < buildings.length; j++) {
+                const building = buildings[j];
+
+                if (!building.collisionBox) continue;
+
+                this._expandedBox
+                    .copy(building.collisionBox)
+                    .expandByScalar(BULLET_CONFIG.radius);
+
+                this._bulletSphere.center.copy(bullet.position);
+                this._bulletSphere.radius = BULLET_CONFIG.radius;
+
+                if (this._expandedBox.intersectsSphere(this._bulletSphere)) {
+                    this.removeBulletByIndex(i);
+                    bulletRemoved = true;
+                    break;
+                }
+            }
+
+            if (bulletRemoved) continue;
+
+            // =========================
+            // Удаление по времени жизни
+            // =========================
             if (bullet.lifetime <= 0 || bullet.position.y < 0) {
-                this.scene.remove(bullet);
-                this.bullets.splice(i, 1);
+                this.removeBulletByIndex(i);
             }
         }
     }
 
+    removeEnemy(enemy) {
+        if (enemy.userData.engineAudio) {
+            if (enemy.userData.engineAudio.isPlaying) {
+                enemy.userData.engineAudio.stop();
+            }
+            enemy.userData.engineAudio.disconnect();
+        }
+
+        if (enemy.mixer) {
+            enemy.mixer.stopAllAction();
+            enemy.mixer.uncacheRoot(enemy);
+        }
+
+        this.scene.remove(enemy);
+    }
+
+    removeBulletByIndex(index) {
+        const bullet = this.bullets[index];
+        if (!bullet) return;
+
+        this.scene.remove(bullet);
+        this.bullets.splice(index, 1);
+    }
+
     reset() {
-        this.bullets.forEach((bullet) => {
-            this.scene.remove(bullet);
-        });
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            this.scene.remove(this.bullets[i]);
+        }
 
         this.bullets = [];
         this.lastShootTime = 0;
+
         this.wasTriggerPressed.left = false;
         this.wasTriggerPressed.right = false;
     }

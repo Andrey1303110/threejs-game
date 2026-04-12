@@ -225,6 +225,7 @@ class App {
             this.bulletSystem.update(
                 deltaTime,
                 this.enemySystem.enemies,
+                this.city.buildings,
                 this.playerController,
                 elapsedTime
             );
