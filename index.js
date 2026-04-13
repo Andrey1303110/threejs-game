@@ -244,11 +244,14 @@ class App {
 
         this.playerController.updateCamera();
 
-        this.vrHud.render({
-            ...this.gameState.getSnapshot(),
-            speed: this.playerController ? this.playerController.currentSpeed : 0,
-            altitude: this.playerRig ? this.playerRig.position.y : 0
-        });
+        if (this.vrHud) {
+            this.vrHud.render({
+                ...this.gameState.getSnapshot(),
+                speed: this.playerController ? this.playerController.currentSpeed : 0,
+                altitude: this.playerRig ? this.playerRig.position.y : 0,
+                deltaTime,
+            });
+        }
 
         this.renderer.render(this.scene, this.camera);
     }

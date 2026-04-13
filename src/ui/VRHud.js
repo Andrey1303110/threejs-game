@@ -76,6 +76,36 @@ export class VRHud {
         this.gameOverMesh.renderOrder = 110;
         this.root.add(this.gameOverMesh);
 
+        // --- FPS PANEL ---
+        this.fpsCanvas = document.createElement('canvas');
+        this.fpsCanvas.width = 512;
+        this.fpsCanvas.height = 256;
+        this.fpsCtx = this.fpsCanvas.getContext('2d');
+
+        this.fpsTexture = new THREE.CanvasTexture(this.fpsCanvas);
+        this.fpsTexture.needsUpdate = true;
+
+        this.fpsMaterial = new THREE.MeshBasicMaterial({
+            map: this.fpsTexture,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false
+        });
+
+        this.fpsMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.35, 0.18),
+            this.fpsMaterial
+        );
+
+        // 👉 верхний левый угол
+        this.fpsMesh.position.set(-0.5, 0.25, 0);
+        this.root.add(this.fpsMesh);
+
+        // счетчик FPS
+        this._fpsFrames = 0;
+        this._fpsTime = 0;
+        this._fpsValue = 0;
+
         this.camera.add(this.root);
 
         this.render({
@@ -84,6 +114,57 @@ export class VRHud {
             speed: 0,
             altitude: 0
         });
+    }
+
+    updateFPS(deltaTime) {
+        this._fpsFrames++;
+        this._fpsTime += deltaTime;
+
+        this._fpsValue = Math.round(this._fpsFrames / this._fpsTime);
+        this._fpsFrames = 0;
+        this._fpsTime = 0;
+
+        this.renderFPS();
+    }
+
+    renderFPS() {
+        const ctx = this.fpsCtx;
+        const canvas = this.fpsCanvas;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // фон
+        this.drawRoundedRect(
+            ctx,
+            20,
+            20,
+            200,
+            100,
+            20,
+            'rgba(0,0,0,0.75)'
+        );
+
+        // текст
+        ctx.fillStyle = '#00ff88';
+        ctx.font = 'bold 48px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.fillText(
+            `${this._fpsValue}`,
+            120,
+            70
+        );
+
+        ctx.font = '20px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillText(
+            'FPS',
+            120,
+            110
+        );
+
+        this.fpsTexture.needsUpdate = true;
     }
 
     setupTexture(texture) {
@@ -99,6 +180,7 @@ export class VRHud {
     render(state) {
         this.renderHud(state);
         this.renderGameOver(state);
+        this.updateFPS(state.deltaTime);
     }
 
     renderHud(state) {
