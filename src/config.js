@@ -41,7 +41,7 @@ export const BULLET_CONFIG = {
     reloadTime: 0.25,
 
     muzzleOffset: 2.5,
-    hitDistance: 2
+    hitDistance: 3
 };
 
 export const CITY_CONFIG = {
@@ -49,9 +49,7 @@ export const CITY_CONFIG = {
     width: 378,
 
     buildingsX: 8,
-    buildingsZ: 26,
-
-    buildingSize: 16,
+    buildingSize: 20,
     baseHeight: 40,
 
     spacingX: 38,
@@ -59,45 +57,21 @@ export const CITY_CONFIG = {
 
     textureRepeatX: 2,
 
-    districts: [
-        {
-            name: 'downtown',
-            zStart: 0.0,
-            zEnd: 0.3,
-            minHeight: 80,
-            maxHeight: 150,
-            minWidthMultiplier: 1.2,
-            maxWidthMultiplier: 1.9,
-            emptyLotChance: 0.04
-        },
-        {
-            name: 'midtown',
-            zStart: 0.3,
-            zEnd: 0.7,
-            minHeight: 55,
-            maxHeight: 110,
-            minWidthMultiplier: 1.1,
-            maxWidthMultiplier: 1.7,
-            emptyLotChance: 0.1
-        },
-        {
-            name: 'suburb',
-            zStart: 0.7,
-            zEnd: 1.0,
-            minHeight: 25,
-            maxHeight: 65,
-            minWidthMultiplier: 1.0,
-            maxWidthMultiplier: 1.4,
-            emptyLotChance: 0.2
-        }
-    ]
+    initialRowsBehind: 3,
+    initialRowsAhead: 10,
+
+    rowsBehind: 2,
+    rowsAhead: 10,
+    minRowsAhead: 5,
+
+    buildingSpawnChance: 0.8
 };
 
 export const ENEMY_CONFIG = {
     minSpawnDelay: 1.0,
     maxSpawnDelay: 2.6,
 
-    enemiesCount: 60,
+    enemiesCount: 50,
     startPositionOffset: 240,
 
     minDistanceBetweenWaves: 100,

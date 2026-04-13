@@ -16,7 +16,7 @@ import { GameState } from './src/game/GameState.js';
 import { VRHud } from './src/ui/VRHud.js';
 import { StartScreenScene } from './src/start-screen/StartScreenScene.js';
 import { AudioManager } from './src/audio/AudioManager.js';
-import { BUTTONS_LEFT, BUTTONS_RIGHT, CONTROLLER_NAME } from './src/constants.js';
+import { BUTTONS_LEFT, BUTTONS_RIGHT, CONTROLLER_NAME, GAME_MODE } from './src/constants.js';
 
 class App {
     constructor() {
@@ -31,7 +31,7 @@ class App {
         this.container = this.createContainer();
         this.renderer = this.rendererFactory.create(this.container);
 
-        this.mode = 'loading';
+        this.mode = GAME_MODE.LOADING;
         this.wasRestartTriggerPressed = false;
         this.wasMenuButtonPressed = false;
 
@@ -143,6 +143,8 @@ class App {
             audioManager: this.audioManager
         });
 
+        this.city.initializeAroundPlayer(this.playerRig.position.z);
+
         this.enemySystem = new EnemySystem(
             this.scene,
             this.city,
@@ -169,7 +171,7 @@ class App {
         });
 
         this.loadingBar.visible = false;
-        this.mode = 'start';
+        this.mode = GAME_MODE.START;
 
         this.renderer.setAnimationLoop(this.render.bind(this));
     }
@@ -178,7 +180,7 @@ class App {
         this.audioManager.unlock();
         this.audioManager.startPlayerEngine?.();
 
-        this.mode = 'game';
+        this.mode = GAME_MODE.GAME;
         this.vrHud.root.visible = true;
         this.restart();
     }
@@ -205,7 +207,7 @@ class App {
             return;
         }
 
-        if (this.mode === 'start') {
+        if (this.mode === GAME_MODE.START) {
             this.startScreen.update(deltaTime);
             this.startScreen.render(this.renderer);
             return;
@@ -215,6 +217,8 @@ class App {
 
         if (!this.gameState.isGameOver) {
             this.playerController.update(deltaTime);
+
+            this.city.update(this.playerRig.position.z);
 
             this.enemySystem.update(
                 deltaTime,
@@ -329,7 +333,7 @@ class App {
         this.audioManager.stopPlayerEngine?.();
 
         this.vrHud.root.visible = false;
-        this.mode = 'start';
+        this.mode = GAME_MODE.START;
 
         this.wasMenuButtonPressed = false;
         this.wasRestartTriggerPressed = false;

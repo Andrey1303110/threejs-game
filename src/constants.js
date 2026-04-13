@@ -20,3 +20,9 @@ export const BUTTONS_RIGHT = {
     A: 4,
     B: 5,
 };
+
+export const GAME_MODE = {
+    LOADING: 'loading',
+    START: 'start',
+    GAME: 'game'
+};
