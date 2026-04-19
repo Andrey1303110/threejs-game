@@ -14,8 +14,17 @@ export class PlayerController {
 
         this.tiltVelocity = 0;
         this.yawVelocity = 0;
+        this.pitchVelocity = 0; // smooth pitch like tilt/yaw
         this.tiltAngle = 0;
         this.yawAngle = 0;
+        this.pitchAngle = 0;
+
+        // speed hold -> falling
+        this.minSpeedHoldTimer = 0;
+        this.isFalling = false;
+        this.fallVelocity = 0;
+        this.touchedGround = false;
+    this.currentFallSpinRate = 0;
 
         this._forward = new THREE.Vector3();
         this._right = new THREE.Vector3();
@@ -89,8 +98,32 @@ export class PlayerController {
     update(deltaTime) {
         const input = this.readXRInput();
 
-        this.updateManualMovement(input, deltaTime);
-        this.updateRotation(input, deltaTime);
+        // if falling, ignore player input for movement/rotation
+        if (!this.isFalling) {
+            this.updateManualMovement(input, deltaTime);
+            this.updateRotation(input, deltaTime);
+        } else {
+            // while falling: reduce speed, apply spin and nose-down
+            // reduce forward speed toward min
+            const loss = FLIGHT_CONFIG.fallSpeedLossRate * deltaTime;
+            this.currentSpeed = Math.max(FLIGHT_CONFIG.speed.min, this.currentSpeed - loss);
+
+            // spin yaw
+            const spin = this.currentFallSpinRate * deltaTime;
+            this.yawGroup.rotation.y += spin;
+
+            // force nose down pitch toward a bigger target
+            const targetPitch = FLIGHT_CONFIG.maxPitch * FLIGHT_CONFIG.fallPitchTargetMultiplier;
+            const pitchForce = -targetPitch - this.pitchAngle; // negative because nose down is negative pitch in controls
+            this.pitchVelocity += pitchForce * FLIGHT_CONFIG.tiltAcceleration * deltaTime;
+            this.pitchVelocity *= Math.max(0, 1 - FLIGHT_CONFIG.tiltDamping * deltaTime);
+            this.pitchAngle += this.pitchVelocity;
+            this.pitchAngle = THREE.MathUtils.clamp(this.pitchAngle, -targetPitch, targetPitch);
+
+            this.tiltGroup.rotation.x = this.pitchAngle;
+            this.tiltGroup.rotation.z = this.tiltAngle;
+        }
+
         this.updateForwardMovement(deltaTime);
 
         if (input.accelerate) {
@@ -102,10 +135,38 @@ export class PlayerController {
         }
 
         if (!input.accelerate && !input.brake) {
+            // if player isn't giving input, try to slowly recover to idle speed
+            const target = FLIGHT_CONFIG.speed.idle;
+            const diff = target - this.currentSpeed;
+            const step = Math.sign(diff) * Math.min(Math.abs(diff), FLIGHT_CONFIG.autoAcceleration.rate * deltaTime);
+            this.currentSpeed += step;
             this.idleBrake(deltaTime);
         }
 
-        this.currentSpeed = THREE.MathUtils.clamp(this.currentSpeed, FLIGHT_CONFIG.speed.idle, FLIGHT_CONFIG.speed.max);
+        // clamp between min and max
+        this.currentSpeed = THREE.MathUtils.clamp(this.currentSpeed, FLIGHT_CONFIG.speed.min, FLIGHT_CONFIG.speed.max);
+
+        // min-speed hold handling -> start falling if held for too long
+        if (this.currentSpeed <= FLIGHT_CONFIG.speed.min + 1e-6) {
+            this.minSpeedHoldTimer += deltaTime;
+        } else {
+            this.minSpeedHoldTimer = 0;
+        }
+
+        if (this.minSpeedHoldTimer >= FLIGHT_CONFIG.minSpeedHoldToFall && !this.isFalling) {
+            this.isFalling = true;
+            // initialize spin rate when fall starts
+            this.currentFallSpinRate = FLIGHT_CONFIG.fallSpinBase || 0;
+        }
+
+        if (this.isFalling) {
+            // increase fall velocity
+            this.fallVelocity += FLIGHT_CONFIG.fallAcceleration * deltaTime;
+            this.playerRig.position.y -= this.fallVelocity * deltaTime;
+
+            // grow spin rate over time
+            this.currentFallSpinRate += (FLIGHT_CONFIG.fallSpinAccel || 0) * deltaTime;
+        }
 
         if (this.audioManager) {
             this.audioManager.updatePlayerEngine(this.currentSpeed, FLIGHT_CONFIG.speed.idle, FLIGHT_CONFIG.speed.max);
@@ -113,6 +174,11 @@ export class PlayerController {
 
         if (this.mixer) {
             this.mixer.update(deltaTime);
+        }
+
+        // ground contact check
+        if (this.playerRig.position.y <= 0 && !this.touchedGround) {
+            this.touchedGround = true;
         }
     }
 
@@ -179,7 +245,7 @@ export class PlayerController {
 
         const targetTilt = -inputCurve * FLIGHT_CONFIG.maxTilt;
         const targetYaw = -inputCurve * FLIGHT_CONFIG.maxYaw;
-        const targetPitch = -input.vertical * FLIGHT_CONFIG.maxPitch;
+    const targetPitch = -input.vertical * FLIGHT_CONFIG.maxPitch;
 
         const tiltForce = targetTilt - this.tiltAngle;
         this.tiltVelocity += tiltForce * FLIGHT_CONFIG.tiltAcceleration * deltaTime;
@@ -202,7 +268,15 @@ export class PlayerController {
         );
 
         this.yawGroup.rotation.y = this.yawAngle;
-        this.tiltGroup.rotation.x = targetPitch;
+
+        // smooth pitch like other axes
+        const pitchForce = targetPitch - this.pitchAngle;
+        this.pitchVelocity += pitchForce * FLIGHT_CONFIG.tiltAcceleration * deltaTime; // reuse tilt accel/damp for pitch feel
+        this.pitchVelocity *= Math.max(0, 1 - FLIGHT_CONFIG.tiltDamping * deltaTime);
+        this.pitchAngle += this.pitchVelocity;
+        this.pitchAngle = THREE.MathUtils.clamp(this.pitchAngle, -FLIGHT_CONFIG.maxPitch, FLIGHT_CONFIG.maxPitch);
+
+        this.tiltGroup.rotation.x = this.pitchAngle;
         this.tiltGroup.rotation.z = this.tiltAngle;
     }
 
@@ -370,6 +444,15 @@ export class PlayerController {
         this.yawVelocity = 0;
         this.tiltAngle = 0;
         this.yawAngle = 0;
+
+        // clear falling state
+        this.pitchVelocity = 0;
+        this.pitchAngle = 0;
+        this.minSpeedHoldTimer = 0;
+        this.isFalling = false;
+        this.fallVelocity = 0;
+        this.touchedGround = false;
+        this.currentFallSpinRate = 0;
 
         this.yawGroup.rotation.copy(PLAYER_CONFIG.rotation);
         this.tiltGroup.rotation.copy(PLAYER_CONFIG.rotation);

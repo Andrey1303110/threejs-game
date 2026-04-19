@@ -84,6 +84,24 @@ export class City {
         this.initialized = true;
     }
 
+    // fully reset city state
+    reset() {
+        // remove all generated rows
+        for (const rowIndex of [...this.generatedRows]) {
+            this.removeRow(rowIndex);
+        }
+
+        // clear pools
+        this.buildingPool.length = 0;
+        this.roadPool.length = 0;
+
+        this.generatedRows.clear();
+        this.rowToBuildings.clear();
+        this.rowToRoads.clear();
+        this.initialized = false;
+        this.maxGeneratedRow = 0;
+    }
+
     update(playerZ) {
         if (!this.initialized) return;
 

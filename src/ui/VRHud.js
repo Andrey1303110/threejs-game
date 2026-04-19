@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FLIGHT_CONFIG } from '../config.js';
 
 const LAYER_WIDTH = 1536;
 const LAYER_HEIGHT = 768;
@@ -213,6 +214,14 @@ export class VRHud {
             value: `${Math.round(state.altitude ?? 0)}`,
             suffix: 'm'
         });
+
+        // low altitude warning
+        if (state.altitude < FLIGHT_CONFIG.lowAltitudeWarning) {
+            ctx.fillStyle = 'rgba(255,80,40,0.85)';
+            ctx.font = 'bold 100px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('LOW ALTITUDE', LAYER_WIDTH * 0.5, altitudeRect.y - 50);
+        }
 
         this.hudTexture.needsUpdate = true;
     }

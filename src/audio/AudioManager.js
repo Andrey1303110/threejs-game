@@ -20,10 +20,11 @@ export class AudioManager {
 
     async loadAll() {
         const entries = await Promise.all([
-            this.loadBuffer('explosion', './assets/audio/explosion.mp3'),
             this.loadBuffer('shot', './assets/audio/shot.mp3'),
-            this.loadBuffer('engine-player', './assets/audio/engine.mp3'),
-            this.loadBuffer('engine-enemy', './assets/audio/engine.mp3')
+            this.loadBuffer('player_boom', './assets/audio/player_boom.mp3'),
+            this.loadBuffer('enemy_boom', './assets/audio/enemy_boom.mp3'),
+            this.loadBuffer('engine_player', './assets/audio/engine.mp3'),
+            this.loadBuffer('engine_enemy', './assets/audio/engine.mp3')
         ]);
 
         entries.forEach(([key, buffer]) => {
@@ -54,7 +55,7 @@ export class AudioManager {
     }
 
     createPlayerEngineAudio(parent) {
-        const buffer = this.getBuffer('engine-player');
+        const buffer = this.getBuffer('engine_player');
         if (!buffer) return null;
 
         const audio = new THREE.Audio(this.listener);
@@ -71,47 +72,81 @@ export class AudioManager {
     createEnemyEngineAudio(parent) {
         return;
         // todo check sound issue
+        // create positional engine audio for enemies
+        // const buffer = this.getBuffer('engine_enemy');
+        // if (!buffer) return null;
 
-        const buffer = this.getBuffer('engine-enemy');
+        // const audio = new THREE.PositionalAudio(this.listener);
+        // audio.setBuffer(buffer);
+        // audio.setLoop(true);
+        // audio.setVolume(this.enemyEngineVolume * this.masterVolume);
+
+        // audio.setRefDistance(12);
+        // audio.setMaxDistance(180);
+        // audio.setRolloffFactor(1.5);
+        // audio.setDistanceModel('inverse');
+        // audio.setDirectionalCone(180, 260, 0.15);
+
+        // parent.add(audio);
+
+        // return audio;
+    }
+
+    playPlayerBoom(volume = 1) {
+        const buffer = this.getBuffer('player_boom');
         if (!buffer) return null;
 
-        const audio = new THREE.PositionalAudio(this.listener);
+        const audio = new THREE.Audio(this.listener);
         audio.setBuffer(buffer);
-        audio.setLoop(true);
-        audio.setVolume(this.enemyEngineVolume * this.masterVolume);
+        audio.setLoop(false);
+        audio.setVolume(volume * this.sfxVolume * this.masterVolume);
 
-        audio.setRefDistance(12);
-        audio.setMaxDistance(180);
-        audio.setRolloffFactor(1.5);
-        audio.setDistanceModel('inverse');
-        audio.setDirectionalCone(180, 260, 0.15);
+        // attach to camera so it's heard reliably
+        if (this.camera) {
+            this.camera.add(audio);
+        }
 
-        parent.add(audio);
+        audio.play();
+
+        if (audio.source) {
+            audio.source.onended = () => {
+                if (this.camera) {
+                    this.camera.remove(audio);
+                }
+                audio.disconnect();
+            };
+        }
 
         return audio;
     }
 
-    playExplosion(parent, volume = 0.5) {
+    playEnemyBoom(parent, volume = 1) {
         return;
         // todo check sound issue
+        // const buffer = this.getBuffer('enemy_boom');
+        // if (!buffer) return null;
 
-        const buffer = this.getBuffer('engine-enemy');
-        if (!buffer) return null;
+        // const audio = new THREE.PositionalAudio(this.listener);
+        // audio.setBuffer(buffer);
+        // audio.setLoop(false);
+        // audio.setVolume(volume * this.sfxVolume * this.masterVolume);
 
-        const audio = new THREE.PositionalAudio(this.listener);
-        audio.setBuffer(buffer);
-        audio.setLoop(true);
-        audio.setVolume(this.enemyEngineVolume * this.masterVolume);
+        // audio.setRefDistance(8);
+        // audio.setMaxDistance(180);
+        // audio.setRolloffFactor(1.2);
+        // audio.setDistanceModel('inverse');
 
-        audio.setRefDistance(12);
-        audio.setMaxDistance(180);
-        audio.setRolloffFactor(1.5);
-        audio.setDistanceModel('inverse');
-        audio.setDirectionalCone(180, 260, 0.15);
+        // parent.add(audio);
+        // audio.play();
 
-        parent.add(audio);
+        // if (audio.source) {
+        //     audio.source.onended = () => {
+        //         parent.remove(audio);
+        //         audio.disconnect();
+        //     };
+        // }
 
-        return audio;
+        // return audio;
     }
 
     playShot(parent, volume = 0.5) {

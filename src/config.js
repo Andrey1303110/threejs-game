@@ -21,7 +21,7 @@ export const FLIGHT_CONFIG = {
 
     speedAcceleration: {
         min: 0.0001,
-        max: 2.5
+        max: 2.25
     },
 
     braking: {
@@ -48,7 +48,7 @@ export const FLIGHT_CONFIG = {
     // наклоны
     maxTilt: Math.PI / 4,   // крен (влево/вправо)
     maxYaw: Math.PI / 6,    // поворот корпуса
-    maxPitch: 0.15,         // вверх/вниз
+    maxPitch: 0.375,         // вверх/вниз
 
     // инерция крена
     tiltAcceleration: 3,
@@ -57,6 +57,27 @@ export const FLIGHT_CONFIG = {
     // инерция поворота
     yawAcceleration: 1.15,
     yawDamping: 25
+    ,
+
+    // auto recovery to idle speed when not braking
+    autoAcceleration: {
+        rate: 0.75
+    },
+
+    // when speed stays at minimum for too long, drone starts falling
+    minSpeedHoldToFall: 3, // seconds
+    fallAcceleration: 9.8, // m/s^2 applied as increase in fall velocity
+
+    // altitude (meters) below which HUD shows a warning
+    lowAltitudeWarning: 50,
+
+    // stall / spin tuning
+    // base angular speed when stall begins
+    fallSpinBase: Math.PI * 0.01, // radians per second
+    // angular acceleration while falling (rad/s^2) - causes spin rate to grow over time
+    fallSpinAccel: Math.PI * 0.5,
+    fallSpeedLossRate: 4, // speed units lost per second while stalling
+    fallPitchTargetMultiplier: 1.5 // how much more nose-down compared to normal maxPitch
 };
 
 export const BULLET_CONFIG = {

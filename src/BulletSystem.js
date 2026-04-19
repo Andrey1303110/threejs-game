@@ -162,6 +162,10 @@ export class BulletSystem {
             enemy.mixer.stopAllAction();
             enemy.mixer.uncacheRoot(enemy);
         }
+        // play enemy explosion sound at enemy position
+        if (this.audioManager) {
+            this.audioManager.playEnemyBoom(enemy, 0.25);
+        }
 
         this.scene.remove(enemy);
     }

@@ -240,8 +240,11 @@ class App {
                 this.enemySystem.enemies
             );
 
-            if (hasCollision) {
-                this.gameState.setGameOver(true);
+            if (hasCollision || this.playerController.touchedGround) {
+                if (!this.gameState.isGameOver) {
+                    this.audioManager?.playPlayerBoom?.(1);
+                    this.gameState.setGameOver(true);
+                }
             }
         } else {
             this.handleRestartInput();
@@ -330,6 +333,8 @@ class App {
         this.bulletSystem.reset();
         this.playerController.reset();
         this.gameState.reset();
+        this.city.reset();
+        this.city.initializeAroundPlayer(this.playerRig.position.z);
 
         this.audioManager.stopPlayerEngine?.();
 
@@ -351,6 +356,8 @@ class App {
         this.bulletSystem.reset();
         this.playerController.reset();
         this.gameState.reset();
+        this.city.reset();
+        this.city.initializeAroundPlayer(this.playerRig.position.z);
 
         this.audioManager.startPlayerEngine?.();
 
