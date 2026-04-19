@@ -60,24 +60,30 @@ export class EnemySystem {
         const z = -this.nextSpawnZ;
 
         switch (waveType) {
-            case 'pair':
-                return [
-                    this.createEnemy(x - ENEMY_CONFIG.sideOffset, y, z),
-                    this.createEnemy(x + ENEMY_CONFIG.sideOffset, y, z)
-                ];
-
-            case 'triple':
-                return [
-                    this.createEnemy(x, y, z),
-                    this.createEnemy(x - ENEMY_CONFIG.sideOffset, y, z - 10),
-                    this.createEnemy(x + ENEMY_CONFIG.sideOffset, y, z - 10)
-                ];
-
-            case 'vertical':
+            case 'pair-vertical':
                 return [
                     this.createEnemy(x, y - ENEMY_CONFIG.verticalOffset, z),
-                    this.createEnemy(x, y, z - 8),
-                    this.createEnemy(x, y + ENEMY_CONFIG.verticalOffset, z - 16)
+                    this.createEnemy(x, y, z)
+                ];
+
+            case 'pair-horizontal':
+                return [
+                    this.createEnemy(x, y, z),
+                    this.createEnemy(x, y, z + ENEMY_CONFIG.longitudinalOffset)
+                ];
+
+            case 'triple-horizontal':
+                return [
+                    this.createEnemy(x, y, z - ENEMY_CONFIG.longitudinalOffset),
+                    this.createEnemy(x, y, z),
+                    this.createEnemy(x, y, z + ENEMY_CONFIG.longitudinalOffset)
+                ];
+
+            case 'triple-vertical':
+                return [
+                    this.createEnemy(x, y - ENEMY_CONFIG.verticalOffset, z - ENEMY_CONFIG.longitudinalOffset),
+                    this.createEnemy(x, y, z),
+                    this.createEnemy(x, y + ENEMY_CONFIG.verticalOffset, z + ENEMY_CONFIG.longitudinalOffset)
                 ];
 
             case 'single':

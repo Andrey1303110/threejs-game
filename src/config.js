@@ -125,17 +125,17 @@ export const ENEMY_CONFIG = {
     enemiesCount: 50,
     startPositionOffset: 240,
 
-    minDistanceBetweenWaves: 100,
-    maxDistanceBetweenWaves: 180,
+    minDistanceBetweenWaves: 250,
+    maxDistanceBetweenWaves: 500,
 
     cameraOffset: 30,
-    minHeight: 60,
-    maxHeight: 100,
+    minHeight: 70,
+    maxHeight: 130,
     moveSpeed: FLIGHT_CONFIG.speed.idle,
 
-    waveTypes: ['single', 'pair', 'triple', 'vertical'],
-    verticalOffset: 8,
-    longitudinalOffset: 12
+    waveTypes: ['single', 'pair-vertical', 'pair-horizontal', 'triple-vertical', 'triple-horizontal'],
+    verticalOffset: 10,
+    longitudinalOffset: 24
 };
 
 export const RADAR_CONFIG = {
