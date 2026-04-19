@@ -1,8 +1,5 @@
 import * as THREE from 'three';
 
-export const DEFAULT_SPEED = 10;
-export const MAX_SPEED = 50;
-
 export const PLAYER_CONFIG = {
     position: new THREE.Vector3(18, 100, 0),
     rotation: new THREE.Euler(0, 0, 0),
@@ -15,7 +12,12 @@ export const PLAYER_CONFIG = {
 }
 
 export const FLIGHT_CONFIG = {
-    speed: 100,
+    speed: {
+        min: 6,
+        idle: 10,
+        max: 50
+    },
+
     speedAcceleration: {
         min: 0.0001,
         max: 2.5
@@ -107,7 +109,7 @@ export const ENEMY_CONFIG = {
     cameraOffset: 30,
     minHeight: 60,
     maxHeight: 100,
-    moveSpeed: DEFAULT_SPEED,
+    moveSpeed: FLIGHT_CONFIG.speed.idle,
 
     waveTypes: ['single', 'pair', 'triple', 'vertical'],
     verticalOffset: 8,

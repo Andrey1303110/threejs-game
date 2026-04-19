@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DEFAULT_SPEED, MAX_SPEED, FLIGHT_CONFIG, PLAYER_CONFIG } from './config.js';
+import { FLIGHT_CONFIG, PLAYER_CONFIG } from './config.js';
 import { applyDeadZone } from './utils/math.js';
 import { BUTTONS_LEFT, BUTTONS_RIGHT, CONTROLLER_NAME } from './constants.js';
 
@@ -10,7 +10,7 @@ export class PlayerController {
         this.renderer = renderer;
         this.audioManager = audioManager;
 
-        this.currentSpeed = DEFAULT_SPEED;
+        this.currentSpeed = FLIGHT_CONFIG.speed.idle;
 
         this.tiltVelocity = 0;
         this.yawVelocity = 0;
@@ -66,7 +66,7 @@ export class PlayerController {
             this.engineAudio = this.audioManager.createPlayerEngineAudio(this.player);
             if (this.engineAudio) {
                 this.audioManager.startPlayerEngine();
-                this.audioManager.updatePlayerEngine(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);
+                this.audioManager.updatePlayerEngine(this.currentSpeed, FLIGHT_CONFIG.speed.idle, FLIGHT_CONFIG.speed.max);
             }
         }
     }
@@ -105,10 +105,10 @@ export class PlayerController {
             this.idleBrake(deltaTime);
         }
 
-        this.currentSpeed = THREE.MathUtils.clamp(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);
+        this.currentSpeed = THREE.MathUtils.clamp(this.currentSpeed, FLIGHT_CONFIG.speed.idle, FLIGHT_CONFIG.speed.max);
 
         if (this.audioManager) {
-            this.audioManager.updatePlayerEngine(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);
+            this.audioManager.updatePlayerEngine(this.currentSpeed, FLIGHT_CONFIG.speed.idle, FLIGHT_CONFIG.speed.max);
         }
 
         if (this.mixer) {
@@ -317,7 +317,7 @@ export class PlayerController {
         const maxAccel = FLIGHT_CONFIG.speedAcceleration.max;   // ускорение на низкой скорости
 
         const speedRatio = THREE.MathUtils.clamp(
-            (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
+            (this.currentSpeed - FLIGHT_CONFIG.speed.idle) / (FLIGHT_CONFIG.speed.max - FLIGHT_CONFIG.speed.idle),
             0,
             1
         );
@@ -333,7 +333,7 @@ export class PlayerController {
         const maxBrake = FLIGHT_CONFIG.braking.max;   // на высокой скорости
 
         const speedRatio = THREE.MathUtils.clamp(
-            (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
+            (this.currentSpeed - FLIGHT_CONFIG.speed.idle) / (FLIGHT_CONFIG.speed.max - FLIGHT_CONFIG.speed.idle),
             0,
             1
         );
@@ -349,12 +349,12 @@ export class PlayerController {
         const maxBrake = FLIGHT_CONFIG.idleBraking.max;   // заметное торможение на высокой скорости
 
         const speedRatio = THREE.MathUtils.clamp(
-            (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
+            (this.currentSpeed - FLIGHT_CONFIG.speed.idle) / (FLIGHT_CONFIG.speed.max - FLIGHT_CONFIG.speed.idle),
             0,
             1
         );
 
-        // возле DEFAULT_SPEED торможение почти исчезает
+        // возле FLIGHT_CONFIG.speed.idle торможение почти исчезает
         const deceleration = minBrake + (maxBrake - minBrake) * (speedRatio * speedRatio);
 
         this.currentSpeed -= deceleration * deltaTime;
@@ -364,7 +364,7 @@ export class PlayerController {
         this.playerRig.position.copy(PLAYER_CONFIG.position);
         this.playerRig.rotation.copy(PLAYER_CONFIG.rotation);
 
-        this.currentSpeed = DEFAULT_SPEED;
+        this.currentSpeed = FLIGHT_CONFIG.speed.idle;
 
         this.tiltVelocity = 0;
         this.yawVelocity = 0;
@@ -375,7 +375,7 @@ export class PlayerController {
         this.tiltGroup.rotation.copy(PLAYER_CONFIG.rotation);
 
         if (this.audioManager) {
-            this.audioManager.updatePlayerEngine(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);
+            this.audioManager.updatePlayerEngine(this.currentSpeed, FLIGHT_CONFIG.speed.idle, FLIGHT_CONFIG.speed.max);
         }
     }
 
