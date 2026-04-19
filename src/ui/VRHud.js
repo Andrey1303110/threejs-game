@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FLIGHT_CONFIG } from '../config.js';
+import { FLIGHT_CONFIG, RADAR_CONFIG } from '../config.js';
 
 const LAYER_WIDTH = 1536;
 const LAYER_HEIGHT = 768;
@@ -109,6 +109,13 @@ export class VRHud {
 
         this.camera.add(this.root);
 
+    // Radar state
+    this.radarImage = new Image();
+    this.radarImage.src = './assets/images/sonar.png';
+    this.radarBlinkOn = true;
+    this.radarDots = []; // cached dot positions
+    this.radarCanvasSize = Math.floor(LAYER_WIDTH * (RADAR_CONFIG.displayFraction || 0.5));
+
         this.render({
             kills: 0,
             isGameOver: false,
@@ -179,9 +186,10 @@ export class VRHud {
     }
 
     render(state) {
-        this.renderHud(state);
-        this.renderGameOver(state);
-        this.updateFPS(state.deltaTime);
+    this.renderHud(state);
+    this.renderRadar(state);
+    this.renderGameOver(state);
+    this.updateFPS(state.deltaTime);
     }
 
     renderHud(state) {
@@ -223,6 +231,76 @@ export class VRHud {
             ctx.fillText('LOW ALTITUDE', LAYER_WIDTH * 0.5, altitudeRect.y - 50);
         }
 
+        this.hudTexture.needsUpdate = true;
+    }
+
+    // radar: state.enemies = array of enemy objects with world positions, state.playerPosition = Vector3
+    renderRadar(state) {
+        const ctx = this.hudCtx;
+        const canvas = this.hudCanvas;
+
+        const radarSize = this.radarCanvasSize;
+        const radius = radarSize * 0.5;
+        const centerX = canvas.width - radarSize - 5; // bottom-right-ish
+        const centerY = radius + 5;
+
+        // background radar image (circular)
+        if (this.radarImage.complete) {
+            ctx.save();
+            ctx.globalAlpha = 0.9;
+            ctx.drawImage(this.radarImage, centerX, centerY - radius, radarSize, radarSize);
+            ctx.restore();
+        } else {
+            // fallback circle
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,24,40,0.6)';
+            ctx.beginPath();
+            ctx.arc(centerX + radius, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // recompute dot positions every frame (so new enemies appear immediately)
+        this.radarDots.length = 0;
+        const enemies = state.enemies || [];
+        const playerPos = state.playerPosition || { x: 0, y: 0, z: 0 };
+
+        for (const enemy of enemies) {
+            const ex = enemy.position.x - playerPos.x;
+            const ez = enemy.position.z - playerPos.z;
+            const dist = Math.hypot(ex, ez);
+
+            const maxRange = RADAR_CONFIG.range;
+            let sx = ex / maxRange;
+            let sy = ez / maxRange;
+            let onEdge = false;
+
+            if (dist > maxRange) {
+                const angle = Math.atan2(ez, ex);
+                sx = Math.cos(angle);
+                sy = Math.sin(angle);
+                onEdge = true;
+            }
+
+            // map to radar pixel coordinates (center is centerX+radius, centerY)
+            const pad = RADAR_CONFIG.padding;
+            const px = centerX + radius + sx * (radius - pad);
+            const py = centerY + sy * (radius - pad);
+
+            this.radarDots.push({ x: px, y: py, onEdge });
+        }
+
+        // draw dots (with blink alpha)
+        ctx.save();
+
+        for (const d of this.radarDots) {
+            ctx.fillStyle = d.onEdge ? '#ffcc00' : '#00ff66';
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, d.onEdge ? 10 : 6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
         this.hudTexture.needsUpdate = true;
     }
 

@@ -257,6 +257,8 @@ class App {
                 ...this.gameState.getSnapshot(),
                 speed: this.playerController ? this.playerController.currentSpeed : 0,
                 altitude: this.playerRig ? this.playerRig.position.y : 0,
+                enemies: this.enemySystem ? this.enemySystem.enemies : [],
+                playerPosition: this.playerRig ? this.playerRig.position : null,
                 deltaTime,
             });
         }

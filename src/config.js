@@ -137,3 +137,13 @@ export const ENEMY_CONFIG = {
     verticalOffset: 8,
     longitudinalOffset: 12
 };
+
+export const RADAR_CONFIG = {
+    range: 600, // meters the radar can show
+    // fraction of HUD width used by radar (0..1) - e.g. 0.5 = half of HUD width
+    displayFraction: 0.25,
+    // padding (in pixels on HUD canvas) to avoid drawing on the radar decorative rim
+    padding: 32
+};
+
+
