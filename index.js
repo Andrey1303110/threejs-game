@@ -167,6 +167,7 @@ class App {
         this.startScreen = new StartScreenScene({
             renderer: this.renderer,
             gltf,
+            audioManager: this.audioManager,
             onStart: () => this.startGame()
         });
 

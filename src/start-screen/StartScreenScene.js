@@ -5,9 +5,10 @@ const BASE_DISTANCE = -4;
 const BASE_HEIGHT = 0.8;
 
 export class StartScreenScene {
-    constructor({ renderer, gltf, onStart }) {
+    constructor({ renderer, gltf, audioManager, onStart }) {
         this.renderer = renderer;
         this.gltf = gltf;
+        this.audioManager = audioManager;
         this.onStart = onStart;
 
         this.scene = new THREE.Scene();
@@ -36,6 +37,8 @@ export class StartScreenScene {
         this.createXRControllers();
         this.createLayout();
         this.createDronePreview();
+
+        this.audioManager.stopPlayerEngine();
     }
 
     createLights() {
