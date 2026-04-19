@@ -45,7 +45,7 @@ export class City {
 
     createLaneCenters() {
         const {
-            buildingsX,
+            buildingLines,
             buildingSize,
             spacingX,
             width: cityWidth
@@ -53,7 +53,7 @@ export class City {
 
         this.laneCenters = [];
 
-        for (let i = 0; i < buildingsX - 1; i++) {
+        for (let i = 0; i < buildingLines - 1; i++) {
             const buildingCenterX =
                 i * (buildingSize + spacingX) - cityWidth * 0.5;
 
@@ -128,7 +128,7 @@ export class City {
         }
 
         const {
-            buildingsX,
+            buildingLines: buildingLines,
             buildingSize,
             spacingX,
             width: cityWidth,
@@ -150,7 +150,7 @@ export class City {
         }
 
         // Дома для этого ряда
-        for (let i = 0; i < buildingsX; i++) {
+        for (let i = 0; i < buildingLines; i++) {
             if (Math.random() > buildingSpawnChance) {
                 continue;
             }
@@ -201,10 +201,13 @@ export class City {
         const sourceTexture =
             this.buildingTextures[getRandomInRange(0, this.buildingTextures.length - 1)];
 
-        const height = getRandomInRange(baseHeight, baseHeight * 3);
+        const height = getRandomInRange(
+            baseHeight,
+            Math.floor(baseHeight * 2)
+        );
         const buildingWidth = getRandomInRange(
-            Math.floor(buildingSize * 1),
-            Math.floor(buildingSize * 1.5)
+            buildingSize,
+            Math.floor(buildingSize * 1.25)
         );
 
         const currentTexture = sourceTexture.clone();

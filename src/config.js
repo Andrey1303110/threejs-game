@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 
 export const PLAYER_CONFIG = {
-    position: new THREE.Vector3(18, 100, 0),
+    position: new THREE.Vector3(11, 100, 0),
     rotation: new THREE.Euler(0, 0, 0),
     camera: {
         fov: 45,
         near: 0.7,
         far: 250
     },
+    cameraOffset: new THREE.Vector3(0, 2.25, 1.2),
     modelScale: new THREE.Vector3(2.25, 2.25, 2.25)
 }
 
@@ -77,12 +78,12 @@ export const CITY_CONFIG = {
     depth: 3000,
     width: 378,
 
-    buildingsX: 8,
-    buildingSize: 20,
-    baseHeight: 40,
+    buildingLines: 8,
+    buildingSize: 30,
+    baseHeight: 80,
 
-    spacingX: 38,
-    spacingZ: 52,
+    spacingX: 50,
+    spacingZ: 80,
 
     textureRepeatX: 2,
 
