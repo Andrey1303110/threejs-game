@@ -3,7 +3,34 @@ import * as THREE from 'three';
 export const DEFAULT_SPEED = 10;
 export const MAX_SPEED = 50;
 
+export const PLAYER_CONFIG = {
+    position: new THREE.Vector3(18, 100, 0),
+    rotation: new THREE.Euler(0, 0, 0),
+    camera: {
+        fov: 45,
+        near: 0.7,
+        far: 250
+    },
+    modelScale: new THREE.Vector3(2.25, 2.25, 2.25)
+}
+
 export const FLIGHT_CONFIG = {
+    speed: 100,
+    speedAcceleration: {
+        min: 0.0001,
+        max: 2.5
+    },
+
+    braking: {
+        min: 3,
+        max: 6
+    },
+
+    idleBraking: {
+        min: 0.2,
+        max: 2.5
+    },
+
     // чувствительность стиков
     horizontalDeadZone: 0.15,
     verticalDeadZone: 0.1,

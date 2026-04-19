@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DEFAULT_SPEED, MAX_SPEED, FLIGHT_CONFIG } from './config.js';
+import { DEFAULT_SPEED, MAX_SPEED, FLIGHT_CONFIG, PLAYER_CONFIG } from './config.js';
 import { applyDeadZone } from './utils/math.js';
 import { BUTTONS_LEFT, BUTTONS_RIGHT, CONTROLLER_NAME } from './constants.js';
 
@@ -41,7 +41,7 @@ export class PlayerController {
         this.modelRoot = new THREE.Group();
         this.model = gltf.scene;
 
-        this.model.scale.set(2.25, 2.25, 2.25);
+        this.model.scale.copy(PLAYER_CONFIG.modelScale);
         this.modelRoot.rotation.y = Math.PI / 2;
 
         this.model.add(debugMesh);
@@ -313,8 +313,8 @@ export class PlayerController {
     }
 
     accelerate(deltaTime) {
-        const minAccel = 0.1;   // минимальное ускорение у верхней границы
-        const maxAccel = 2.25;   // ускорение на низкой скорости
+        const minAccel = FLIGHT_CONFIG.speedAcceleration.min;   // минимальное ускорение у верхней границы
+        const maxAccel = FLIGHT_CONFIG.speedAcceleration.max;   // ускорение на низкой скорости
 
         const speedRatio = THREE.MathUtils.clamp(
             (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
@@ -329,8 +329,8 @@ export class PlayerController {
     }
 
     brake(deltaTime) {
-        const minBrake = 3;   // у нижней границы
-        const maxBrake = 6;   // на высокой скорости
+        const minBrake = FLIGHT_CONFIG.braking.min;   // у нижней границы
+        const maxBrake = FLIGHT_CONFIG.braking.max;   // на высокой скорости
 
         const speedRatio = THREE.MathUtils.clamp(
             (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
@@ -345,8 +345,8 @@ export class PlayerController {
     }
 
     idleBrake(deltaTime) {
-        const minBrake = 0.35;   // почти нет торможения у дефолтной
-        const maxBrake = 3;   // заметное торможение на высокой скорости
+        const minBrake = FLIGHT_CONFIG.idleBraking.min;   // почти нет торможения у дефолтной
+        const maxBrake = FLIGHT_CONFIG.idleBraking.max;   // заметное торможение на высокой скорости
 
         const speedRatio = THREE.MathUtils.clamp(
             (this.currentSpeed - DEFAULT_SPEED) / (MAX_SPEED - DEFAULT_SPEED),
@@ -361,8 +361,8 @@ export class PlayerController {
     }
 
     reset() {
-        this.playerRig.position.set(0, 80, 0);
-        this.playerRig.rotation.set(0, 0, 0);
+        this.playerRig.position.copy(PLAYER_CONFIG.position);
+        this.playerRig.rotation.copy(PLAYER_CONFIG.rotation);
 
         this.currentSpeed = DEFAULT_SPEED;
 
@@ -371,8 +371,8 @@ export class PlayerController {
         this.tiltAngle = 0;
         this.yawAngle = 0;
 
-        this.yawGroup.rotation.set(0, 0, 0);
-        this.tiltGroup.rotation.set(0, 0, 0);
+        this.yawGroup.rotation.copy(PLAYER_CONFIG.rotation);
+        this.tiltGroup.rotation.copy(PLAYER_CONFIG.rotation);
 
         if (this.audioManager) {
             this.audioManager.updatePlayerEngine(this.currentSpeed, DEFAULT_SPEED, MAX_SPEED);

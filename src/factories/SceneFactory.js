@@ -1,13 +1,12 @@
 import * as THREE from 'three';
+import { PLAYER_CONFIG } from '../config';
 
 export class SceneFactory {
     createCamera() {
-        return new THREE.PerspectiveCamera(
-            50,
-            window.innerWidth / window.innerHeight,
-            1,
-            500
-        );
+        const { fov, near, far } = PLAYER_CONFIG.camera;
+        const aspect = window.innerWidth / window.innerHeight;
+
+        return new THREE.PerspectiveCamera(fov, aspect, near, far);
     }
 
     createScene() {
