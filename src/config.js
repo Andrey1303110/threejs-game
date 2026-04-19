@@ -143,7 +143,12 @@ export const RADAR_CONFIG = {
     // fraction of HUD width used by radar (0..1) - e.g. 0.5 = half of HUD width
     displayFraction: 0.25,
     // padding (in pixels on HUD canvas) to avoid drawing on the radar decorative rim
-    padding: 32
+    padding: 28,
+    // enemy dot sizes (pixels)
+    dotMin: 4,
+    dotMax: 8,
+    // player dot size (pixels)
+    playerDotSize: 14
 };
 
 

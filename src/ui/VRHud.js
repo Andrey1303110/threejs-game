@@ -241,8 +241,8 @@ export class VRHud {
 
         const radarSize = this.radarCanvasSize;
         const radius = radarSize * 0.5;
-        const centerX = canvas.width - radarSize - 5; // bottom-right-ish
-        const centerY = radius + 5;
+        const centerX = canvas.width - radarSize - 5; // place near right
+        const centerY = radius + 5; // top margin
 
         // background radar image (circular)
         if (this.radarImage.complete) {
@@ -260,17 +260,18 @@ export class VRHud {
             ctx.restore();
         }
 
-        // recompute dot positions every frame (so new enemies appear immediately)
+        // recompute dot positions every frame so new enemies appear immediately
         this.radarDots.length = 0;
         const enemies = state.enemies || [];
-        const playerPos = state.playerPosition || { x: 0, y: 0, z: 0 };
+        const playerPos = state.playerPosition;
+        const pad = RADAR_CONFIG.padding;
+        const maxRange = RADAR_CONFIG.range;
 
         for (const enemy of enemies) {
             const ex = enemy.position.x - playerPos.x;
             const ez = enemy.position.z - playerPos.z;
             const dist = Math.hypot(ex, ez);
 
-            const maxRange = RADAR_CONFIG.range;
             let sx = ex / maxRange;
             let sy = ez / maxRange;
             let onEdge = false;
@@ -282,23 +283,33 @@ export class VRHud {
                 onEdge = true;
             }
 
-            // map to radar pixel coordinates (center is centerX+radius, centerY)
-            const pad = RADAR_CONFIG.padding;
             const px = centerX + radius + sx * (radius - pad);
             const py = centerY + sy * (radius - pad);
 
-            this.radarDots.push({ x: px, y: py, onEdge });
+            this.radarDots.push({ x: px, y: py, onEdge, dist });
         }
 
-        // draw dots (with blink alpha)
         ctx.save();
 
         for (const d of this.radarDots) {
+            // size scales inversely with distance: closer -> larger
+            const ratio = Math.max(0, Math.min(1, 1 - (d.dist / maxRange)));
+            const minS = RADAR_CONFIG.dotMin;
+            const maxS = RADAR_CONFIG.dotMax;
+            const size = Math.round(minS + (maxS - minS) * ratio);
+
             ctx.fillStyle = d.onEdge ? '#ffcc00' : '#00ff66';
             ctx.beginPath();
-            ctx.arc(d.x, d.y, d.onEdge ? 10 : 6, 0, Math.PI * 2);
+            ctx.arc(d.x, d.y, size, 0, Math.PI * 2);
             ctx.fill();
         }
+
+        // draw player center dot (red)
+        ctx.fillStyle = '#ff3333';
+        const playerSize = RADAR_CONFIG.playerDotSize;
+        ctx.beginPath();
+        ctx.arc(centerX + radius, centerY, playerSize, 0, Math.PI * 2);
+        ctx.fill();
 
         ctx.restore();
         this.hudTexture.needsUpdate = true;
