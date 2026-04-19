@@ -134,8 +134,8 @@ export const ENEMY_CONFIG = {
     moveSpeed: FLIGHT_CONFIG.speed.idle,
 
     waveTypes: ['single', 'pair-vertical', 'pair-horizontal', 'triple-vertical', 'triple-horizontal'],
-    verticalOffset: 10,
-    longitudinalOffset: 24
+    verticalOffset: 12,
+    longitudinalOffset: 25
 };
 
 export const RADAR_CONFIG = {
