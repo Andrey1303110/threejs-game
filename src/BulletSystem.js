@@ -45,9 +45,9 @@ export class BulletSystem {
             if (handedness !== CONTROLLER_NAME.RIGHT) continue;
 
             const triggerPressed = !!source.gamepad.buttons[BUTTONS_RIGHT.TRIGGER]?.pressed;
-            const wasPressed = this.wasTriggerPressed[handedness];
 
-            if (triggerPressed && !wasPressed) {
+            // support both tap and hold: if trigger is pressed, try to shoot (shoot() checks reload time)
+            if (triggerPressed) {
                 this.shoot(playerController, elapsedTime);
             }
 

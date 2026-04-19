@@ -24,7 +24,7 @@ export class PlayerController {
         this.isFalling = false;
         this.fallVelocity = 0;
         this.touchedGround = false;
-    this.currentFallSpinRate = 0;
+        this.currentFallSpinRate = 0;
 
         this._forward = new THREE.Vector3();
         this._right = new THREE.Vector3();
@@ -245,7 +245,7 @@ export class PlayerController {
 
         const targetTilt = -inputCurve * FLIGHT_CONFIG.maxTilt;
         const targetYaw = -inputCurve * FLIGHT_CONFIG.maxYaw;
-    const targetPitch = -input.vertical * FLIGHT_CONFIG.maxPitch;
+        const targetPitch = -input.vertical * FLIGHT_CONFIG.maxPitch;
 
         const tiltForce = targetTilt - this.tiltAngle;
         this.tiltVelocity += tiltForce * FLIGHT_CONFIG.tiltAcceleration * deltaTime;

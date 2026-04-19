@@ -83,8 +83,8 @@ export const FLIGHT_CONFIG = {
 export const BULLET_CONFIG = {
     radius: 0.25,
 
-    initialSpeed: 120,
-    drag: 0.4,
+    initialSpeed: 150,
+    drag: 0.25,
 
     gravity: new THREE.Vector3(0, -9.8, 0),
 
