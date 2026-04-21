@@ -14,13 +14,15 @@ export const PLAYER_CONFIG = {
 
 export const FLIGHT_CONFIG = {
     speed: {
-        min: 6,
-        idle: 10,
-        max: 50
+        min: 12,
+        idle: 20,
+        max: 70
     },
 
+    speedMultiplier: 5,
+
     speedAcceleration: {
-        min: 0.0001,
+        min: 0.0000000001,
         max: 2.25
     },
 
@@ -149,6 +151,23 @@ export const RADAR_CONFIG = {
     dotMax: 8,
     // player dot size (pixels)
     playerDotSize: 14
+};
+
+export const TRAFFIC_CONFIG = {
+    // how far ahead of the player vehicles should spawn (meters)
+    // set these beyond typical camera far-plane to ensure they appear off-screen
+    spawnAheadMin: 220,
+    spawnAheadMax: 700,
+
+    // maximum vehicles allowed concurrently
+    maxVehicles: 60,
+
+    // safe distance between vehicles on same lane (meters)
+    safeDistance: 20,
+
+    // spawn interval range (seconds)
+    spawnIntervalMin: 0.1,
+    spawnIntervalMax: 3
 };
 
 

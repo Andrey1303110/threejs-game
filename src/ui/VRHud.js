@@ -213,7 +213,7 @@ export class VRHud {
 
         this.drawLeftMetric(ctx, speedRect, {
             label: 'SPEED',
-            value: `${Math.round((state.speed ?? 0) * 10)}`,
+            value: `${Math.round((state.speed ?? 0) * FLIGHT_CONFIG.speedMultiplier)}`,
             suffix: 'km/h'
         });
 

@@ -16,6 +16,7 @@ import { GameState } from './src/game/GameState.js';
 import { VRHud } from './src/ui/VRHud.js';
 import { StartScreenScene } from './src/start-screen/StartScreenScene.js';
 import { AudioManager } from './src/audio/AudioManager.js';
+import { TrafficSystem } from './src/TrafficSystem.js';
 import { BUTTONS_LEFT, BUTTONS_RIGHT, CONTROLLER_NAME, GAME_MODE } from './src/constants.js';
 
 class App {
@@ -81,6 +82,8 @@ class App {
         this.vrHud.root.visible = false;
 
         this.audioManager = new AudioManager(this.camera);
+
+        this.trafficSystem = new TrafficSystem(this.scene, this.city);
 
         this.playerController = null;
         this.enemySystem = null;
@@ -219,6 +222,8 @@ class App {
         if (!this.gameState.isGameOver) {
             this.playerController.update(deltaTime);
 
+            if (this.trafficSystem) this.trafficSystem.update(deltaTime, this.playerRig.position.z);
+
             this.city.update(this.playerRig.position.z);
 
             this.enemySystem.update(
@@ -337,6 +342,7 @@ class App {
         this.gameState.reset();
         this.city.reset();
         this.city.initializeAroundPlayer(this.playerRig.position.z);
+        this.trafficSystem.reset();
 
         this.audioManager.stopPlayerEngine?.();
 
@@ -360,6 +366,7 @@ class App {
         this.gameState.reset();
         this.city.reset();
         this.city.initializeAroundPlayer(this.playerRig.position.z);
+        this.trafficSystem.reset();
 
         this.audioManager.startPlayerEngine?.();
 
@@ -385,6 +392,10 @@ class App {
 
         if (this.playerController) {
             this.playerController.dispose();
+        }
+
+        if (this.trafficSystem) {
+            this.trafficSystem.dispose();
         }
 
         if (this.bulletSystem) {
