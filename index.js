@@ -116,7 +116,7 @@ class App {
     }
 
     loadPlayerModel() {
-        this.loader.setPath('./assets/shahed-131_special_edition_white/');
+        this.loader.setPath('./assets/3d_models/shahed_131_white/');
 
         this.loader.load(
             'scene.gltf',
