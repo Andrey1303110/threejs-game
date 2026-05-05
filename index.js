@@ -18,10 +18,17 @@ import { StartScreenScene } from './src/start-screen/StartScreenScene.js';
 import { AudioManager } from './src/audio/AudioManager.js';
 import { TrafficSystem } from './src/TrafficSystem.js';
 import { BUTTONS_LEFT, BUTTONS_RIGHT, CONTROLLER_NAME, GAME_MODE } from './src/constants.js';
+import { GAME_CONFIG } from './src/config.js';
 
 class App {
     constructor() {
         this.clock = new THREE.Clock();
+        // accumulator for fixed-timestep updates (helps make controls frame-rate independent)
+        this._accumulator = 0;
+        // target physics/update rate (use 90Hz to match initial VR framerate feel)
+        this._fixedDelta = GAME_CONFIG.targetFPS;
+        // clamp large frame deltas (prevents spiral of death when tab was backgrounded)
+        this._maxFrameDelta = GAME_CONFIG.maxFrameDelta;
 
         this.sceneFactory = new SceneFactory();
         this.rendererFactory = new RendererFactory();
@@ -203,43 +210,59 @@ class App {
     }
 
     render() {
-        const deltaTime = this.clock.getDelta();
+        // frameDelta is clamped to avoid huge jumps when tab/window was inactive
+        const frameDeltaRaw = this.clock.getDelta();
+        const frameDelta = Math.min(frameDeltaRaw, this._maxFrameDelta);
         const elapsedTime = this.clock.elapsedTime;
 
+        // if player isn't ready yet, just render a frame
         if (!this.playerController) {
             this.renderer.render(this.scene, this.camera);
             return;
         }
 
+        // START mode uses the frame delta for the preview UI (no physics sensitivity)
         if (this.mode === GAME_MODE.START) {
-            this.startScreen.update(deltaTime);
+            this.startScreen.update(frameDelta);
             this.startScreen.render(this.renderer);
             return;
         }
 
         this.handleMainMenuInput();
 
+        // accumulate time and step the game systems at a fixed rate so controls and physics
+        // remain stable regardless of rendering FPS
+        this._accumulator += frameDelta;
+
+        const fixedDt = this._fixedDelta;
+
         if (!this.gameState.isGameOver) {
-            this.playerController.update(deltaTime);
+            // step systems in fixed increments
+            while (this._accumulator >= fixedDt) {
+                this.playerController.update(fixedDt);
 
-            if (this.trafficSystem) this.trafficSystem.update(deltaTime, this.playerRig.position.z);
+                if (this.trafficSystem) this.trafficSystem.update(fixedDt, this.playerRig.position.z);
 
-            this.city.update(this.playerRig.position.z);
+                // city.update is based on player position, doesn't need dt param
+                this.city.update(this.playerRig.position.z);
 
-            this.enemySystem.update(
-                deltaTime,
-                this.playerRig.position.z,
-                elapsedTime
-            );
+                this.enemySystem.update(
+                    fixedDt,
+                    this.playerRig.position.z
+                );
 
-            this.bulletSystem.update(
-                deltaTime,
-                this.enemySystem.enemies,
-                this.city.buildings,
-                this.playerController,
-                elapsedTime
-            );
+                this.bulletSystem.update(
+                    fixedDt,
+                    this.enemySystem.enemies,
+                    this.city.buildings,
+                    this.playerController,
+                    elapsedTime
+                );
 
+                this._accumulator -= fixedDt;
+            }
+
+            // collisions and game-over checks after stepping
             const hasCollision = this.playerController.updateCollisions(
                 this.city.buildings,
                 this.enemySystem.enemies
@@ -258,13 +281,14 @@ class App {
         this.playerController.updateCamera();
 
         if (this.vrHud) {
+            // HUD can use the per-frame (clamped) delta for smoother display
             this.vrHud.render({
                 ...this.gameState.getSnapshot(),
                 speed: this.playerController ? this.playerController.currentSpeed : 0,
                 altitude: this.playerRig ? this.playerRig.position.y : 0,
                 enemies: this.enemySystem ? this.enemySystem.enemies : [],
                 playerPosition: this.playerRig ? this.playerRig.position : null,
-                deltaTime,
+                deltaTime: frameDelta,
             });
         }
 

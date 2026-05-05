@@ -1,5 +1,10 @@
 import * as THREE from 'three';
 
+export const GAME_CONFIG = {
+    targetFPS: 90,
+    maxFrameDelta: 1 / 25
+}
+
 export const PLAYER_CONFIG = {
     position: new THREE.Vector3(11, 100, 0),
     rotation: new THREE.Euler(0, 0, 0),
@@ -137,8 +142,18 @@ export const ENEMY_CONFIG = {
 
     waveTypes: ['single', 'pair-vertical', 'pair-horizontal', 'triple-vertical', 'triple-horizontal'],
     verticalOffset: 12,
-    longitudinalOffset: 25
+    longitudinalOffset: 25,
+    // optimization helpers
+    // keep a pool of this many enemy objects ready to reuse (avoid expensive cloning at runtime)
+    poolSize: 12,
+    // distance (meters) under which enemy mixers will be updated (animations)
+    animationDistance: 120,
+    // distance under which engine audio will be created/updated
+    audioDistance: 80
 };
+
+// how far ahead of the player enemies should be spawned (meters)
+ENEMY_CONFIG.spawnAhead = 800;
 
 export const RADAR_CONFIG = {
     range: 600, // meters the radar can show
