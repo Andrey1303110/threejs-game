@@ -26,7 +26,7 @@ class App {
         // accumulator for fixed-timestep updates (helps make controls frame-rate independent)
         this._accumulator = 0;
         // target physics/update rate (use 90Hz to match initial VR framerate feel)
-        this._fixedDelta = GAME_CONFIG.targetFPS;
+        this._fixedDelta = 1 / GAME_CONFIG.targetFPS;
         // clamp large frame deltas (prevents spiral of death when tab was backgrounded)
         this._maxFrameDelta = GAME_CONFIG.maxFrameDelta;
 
